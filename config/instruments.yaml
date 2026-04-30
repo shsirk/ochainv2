@@ -1,0 +1,72 @@
+# NSE F&O instruments supported by OChain v2.
+# lot_size: current SEBI-mandated lot size (verify before each expiry series)
+# tick_size: minimum price movement for options
+# strike_step: interval between consecutive strikes
+# num_strikes: number of strikes on each side of ATM to collect
+# is_index: true for index derivatives (cash-settled)
+
+instruments:
+  NIFTY:
+    exchange: NSE
+    lot_size: 75
+    tick_size: 0.05
+    strike_step: 50
+    num_strikes: 20
+    is_index: true
+
+  BANKNIFTY:
+    exchange: NSE
+    lot_size: 35
+    tick_size: 0.05
+    strike_step: 100
+    num_strikes: 20
+    is_index: true
+
+  FINNIFTY:
+    exchange: NSE
+    lot_size: 65
+    tick_size: 0.05
+    strike_step: 50
+    num_strikes: 20
+    is_index: true
+
+  MIDCPNIFTY:
+    exchange: NSE
+    lot_size: 120
+    tick_size: 0.05
+    strike_step: 25
+    num_strikes: 20
+    is_index: true
+
+  # Stock options (add as needed)
+  RELIANCE:
+    exchange: NSE
+    lot_size: 250
+    tick_size: 0.05
+    strike_step: 50
+    num_strikes: 15
+    is_index: false
+
+  HDFCBANK:
+    exchange: NSE
+    lot_size: 550
+    tick_size: 0.05
+    strike_step: 20
+    num_strikes: 15
+    is_index: false
+
+  INFY:
+    exchange: NSE
+    lot_size: 400
+    tick_size: 0.05
+    strike_step: 20
+    num_strikes: 15
+    is_index: false
+
+  TCS:
+    exchange: NSE
+    lot_size: 175
+    tick_size: 0.05
+    strike_step: 50
+    num_strikes: 15
+    is_index: false

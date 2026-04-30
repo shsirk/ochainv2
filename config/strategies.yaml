@@ -1,0 +1,46 @@
+# Trading strategy registry.
+# enabled: whether the strategy appears in the UI and API.
+# default: which strategy is selected on first load.
+
+strategies:
+  naked_buyer:
+    enabled: true
+    default: true
+    display_name: "Naked Option Buyer"
+    description: "Momentum and OI-based signals for directional option buying"
+
+  naked_seller:
+    enabled: true
+    default: false
+    display_name: "Naked Option Seller"
+    description: "IV and OI-based signals for premium collection"
+
+  straddle:
+    enabled: true
+    default: false
+    display_name: "Straddle / Strangle"
+    description: "Volatility direction signals for non-directional positions"
+
+  strangle:
+    enabled: true
+    default: false
+    display_name: "Strangle"
+    description: "Wide non-directional premium collection signals"
+
+  spread:
+    enabled: true
+    default: false
+    display_name: "Vertical Spread"
+    description: "Bull/bear vertical spread entry and exit signals"
+
+  iron_condor:
+    enabled: true
+    default: false
+    display_name: "Iron Condor"
+    description: "Range-bound regime detection for iron condor positioning"
+
+  gamma_scalper:
+    enabled: false
+    default: false
+    display_name: "Gamma Scalper"
+    description: "Dealer gamma map and flip-point signals for gamma scalping"

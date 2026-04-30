@@ -1,0 +1,49 @@
+# Copy this to config/settings.yaml and fill in your values.
+# settings.yaml is gitignored and never committed.
+
+app:
+  api_port: 5051
+  collector_port: 5052         # collector admin API (localhost only)
+  debug: false
+  log_level: INFO              # DEBUG | INFO | WARNING | ERROR
+  log_file: logs/ochain.log
+
+db:
+  duckdb_path: data/ochain.duckdb
+  meta_sqlite_path: data/ochain_meta.sqlite
+  archive_path: data/archive
+  reader_pool_size: 4          # concurrent read connections for API workers
+  archive_after_days: 90       # snapshots older than this are exported to Parquet
+
+collector:
+  interval_sec: 60             # polling cadence (1 minute)
+  pre_open_snapshot: true      # capture a session-base snapshot at 09:00 IST
+  pre_open_time: "09:00"       # HH:MM IST
+  market_open: "09:15"         # HH:MM IST
+  market_close: "15:30"        # HH:MM IST
+  holidays_file: config/nse_holidays.yaml
+  instruments_file: config/instruments.yaml
+  live_channel: memory         # "memory" (single-process) | "redis"
+  # redis_url: redis://localhost:6379/0
+
+broker:
+  name: dhan                   # dhan | kite
+  credentials_path: "%LOCALAPPDATA%/OChain/credentials.json"
+  rate_limit_per_sec: 5        # token-bucket rate for this broker
+  connect_timeout_sec: 10
+  request_timeout_sec: 15
+  circuit_breaker_threshold: 5 # consecutive failures before pause
+  circuit_breaker_pause_sec: 300
+
+instruments:
+  # Symbols to collect. Must match keys in instruments.yaml.
+  active:
+    - NIFTY
+    - BANKNIFTY
+  # Number of expiries to track per symbol (nearest N)
+  expiries_per_symbol: 2
+
+cache:
+  snapshot_ttl_sec: 3600       # per-snapshot analytical sidecar TTL
+  window_ttl_sec: 60           # per-window (from_idx/to_idx) LRU TTL
+  max_window_entries: 200
