@@ -46,13 +46,13 @@
 
 ### 1a — Core Utilities
 
-- [ ] **P1-1** `core/settings.py` — pydantic-settings loading YAML + env overrides
-- [ ] **P1-2** `core/timezones.py` — IST tz-aware `now_ist()`, `to_ist()`, `trade_date_ist(ts)`
-- [ ] **P1-3** `core/market_hours.py` — `is_market_open(dt)`, `next_open(dt)`, holiday lookup, `session_bounds(date)` returning (09:15, 15:30)
-- [ ] **P1-4** `core/ulid.py` — monotonic `snapshot_id` generator (sortable bigint)
-- [ ] **P1-5** `core/logging.py` — structured JSON logger (stdout + rotating file)
-- [ ] **P1-6** `core/errors.py` — typed exceptions: `BrokerError`, `IngestError`, `AnalysisError`
-- [ ] **P1-7** Unit tests for `market_hours.py` (open/closed/holiday/edge times)
+- [x] **P1-1** `core/settings.py` — pydantic-settings loading YAML + env overrides
+- [x] **P1-2** `core/timezones.py` — IST tz-aware `now_ist()`, `to_ist()`, `trade_date_ist(ts)`
+- [x] **P1-3** `core/market_hours.py` — `is_market_open(dt)`, `next_open(dt)`, holiday lookup, `session_bounds(date)` returning (09:15, 15:30)
+- [x] **P1-4** `core/ulid.py` — monotonic `snapshot_id` generator (sortable bigint)
+- [x] **P1-5** `core/logging.py` — structured JSON logger (stdout + rotating file)
+- [x] **P1-6** `core/errors.py` — typed exceptions: `BrokerError`, `IngestError`, `AnalysisError`
+- [x] **P1-7** Unit tests for `market_hours.py` (open/closed/holiday/edge times)
 
 ### 1b — DuckDB Schema & Storage
 
