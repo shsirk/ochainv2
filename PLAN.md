@@ -69,15 +69,15 @@
 
 ### 1d — Analyzer Primitives (pure functions, DataFrame in/out)
 
-- [ ] **P1-15** `analyzers/primitives.py` — `compute_delta(current_df, ref_df)`, `compute_pcr(df)`, `compute_atm(df, spot)`, `compute_max_pain(df)`, `compute_buildups(current_df, prev_df)`, `compute_support_resistance(df)`
-- [ ] **P1-16** `analyzers/greeks.py` — Black-Scholes: `bs_price`, `bs_delta`, `bs_gamma`, `bs_theta`, `bs_vega`, `bs_iv`; `compute_payoff(legs, spot_range)`, `compute_pop(legs, spot, iv, dte)`
-- [ ] **P1-17** `analyzers/gex.py` — `compute_gex(df, spot, lot_size)` with explicit gamma units; `gex_flip_point`, `gex_regime` with deadband
-- [ ] **P1-18** `analyzers/heatmap.py` — fully vectorized (no Python cell loop); `build_heatmap_matrix(chain_rows_df, metric)` returning `{strikes, timestamps, matrix}`
-- [ ] **P1-19** `analyzers/alerts.py` — incremental: `detect_alerts(current_df, prev_df, thresholds)` returns list of alert dicts; no full-day recompute
-- [ ] **P1-20** `analyzers/iv_surface.py` — `compute_iv_smile(df, expiry_date, spot)`, `compute_iv_surface(expiries_dict, spot)` with None-gap handling
-- [ ] **P1-21** `analyzers/rollover.py` — `detect_rollover(current_df, prev_df)` OI shift detection
-- [ ] **P1-22** `analyzers/expected_move.py` — IV+DTE formula; straddle fallback
-- [ ] **P1-23** Unit tests for every analyzer primitive against known inputs; Black-Scholes against tabulated values; max pain curve verification
+- [x] **P1-15** `analyzers/primitives.py` — `compute_delta(current_df, ref_df)`, `compute_pcr(df)`, `compute_atm(df, spot)`, `compute_max_pain(df)`, `compute_buildups(current_df, prev_df)`, `compute_support_resistance(df)`
+- [x] **P1-16** `analyzers/greeks.py` — Black-Scholes: `bs_price`, `bs_delta`, `bs_gamma`, `bs_theta`, `bs_vega`, `bs_iv`; `compute_payoff(legs, spot_range)`, `compute_pop(legs, spot, iv, dte)`
+- [x] **P1-17** `analyzers/gex.py` — `compute_gex(df, spot, lot_size)` with explicit gamma units; `gex_flip_point`, `gex_regime` with deadband
+- [x] **P1-18** `analyzers/heatmap.py` — fully vectorized (no Python cell loop); `build_heatmap_matrix(chain_rows_df, metric)` returning `{strikes, timestamps, matrix}`
+- [x] **P1-19** `analyzers/alerts.py` — incremental: `detect_alerts(current_df, prev_df, thresholds)` returns list of alert dicts; no full-day recompute
+- [x] **P1-20** `analyzers/iv_surface.py` — `compute_iv_smile(df, expiry_date, spot)`, `compute_iv_surface(expiries_dict, spot)` with None-gap handling
+- [x] **P1-21** `analyzers/rollover.py` — `detect_rollover(current_df, prev_df)` OI shift detection
+- [x] **P1-22** `analyzers/expected_move.py` — IV+DTE formula; straddle fallback
+- [x] **P1-23** Unit tests for every analyzer primitive against known inputs; Black-Scholes against tabulated values; max pain curve verification
 
 ### 1e — Strategy Layer
 
