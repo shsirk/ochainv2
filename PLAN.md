@@ -56,16 +56,16 @@
 
 ### 1b — DuckDB Schema & Storage
 
-- [ ] **P1-8** `db/schema.sql` — full DDL: `instruments`, `expiries`, `snapshots`, `chain_rows`, `chain_deltas_base`, `chain_deltas_prev`, `chain_rollup_5m`, `chain_rollup_15m`
-- [ ] **P1-9** `db/duckdb_store.py` — writer class: `init_schema()`, `upsert_instrument()`, `save_snapshot(df, symbol, expiry, ts)` (transactional: writes `snapshots` + `chain_rows` + both delta tables in one txn)
-- [ ] **P1-10** `db/duckdb_reader.py` — read-only connection pool: `get_snapshots(symbol, expiry, date)`, `get_chain_rows(snapshot_id)`, `get_chain_rows_range(symbol, expiry, date, from_ts, to_ts)`, `get_delta_base(snapshot_id)`, `get_heatmap_matrix(symbol, expiry, date, metric, from_ts, to_ts)`
-- [ ] **P1-11** `db/meta_sqlite.py` — SQLite metadata: `collector_status`, `error_log`, `alert_events`, `user_views` tables; CRUD helpers
-- [ ] **P1-12** `db/migrations/` — migration runner that applies numbered `.sql` files in order; idempotent
-- [ ] **P1-13** Unit tests: ingest one snapshot, assert `chain_rows` count, assert `chain_deltas_prev` all-null for first row, assert `chain_deltas_base` correct vs `is_session_base`
+- [x] **P1-8** `db/schema.sql` — full DDL: `instruments`, `expiries`, `snapshots`, `chain_rows`, `chain_deltas_base`, `chain_deltas_prev`, `chain_rollup_5m`, `chain_rollup_15m`
+- [x] **P1-9** `db/duckdb_store.py` — writer class: `init_schema()`, `upsert_instrument()`, `save_snapshot(df, symbol, expiry, ts)` (transactional: writes `snapshots` + `chain_rows` + both delta tables in one txn)
+- [x] **P1-10** `db/duckdb_reader.py` — read-only connection pool: `get_snapshots(symbol, expiry, date)`, `get_chain_rows(snapshot_id)`, `get_chain_rows_range(symbol, expiry, date, from_ts, to_ts)`, `get_delta_base(snapshot_id)`, `get_heatmap_matrix(symbol, expiry, date, metric, from_ts, to_ts)`
+- [x] **P1-11** `db/meta_sqlite.py` — SQLite metadata: `collector_status`, `error_log`, `alert_events`, `user_views` tables; CRUD helpers
+- [x] **P1-12** `db/migrations/` — migration runner that applies numbered `.sql` files in order; idempotent
+- [x] **P1-13** Unit tests: ingest one snapshot, assert `chain_rows` count, assert `chain_deltas_prev` all-null for first row, assert `chain_deltas_base` correct vs `is_session_base`
 
 ### 1c — Delta Writer (inline at ingest)
 
-- [ ] **P1-14** `ingestion/delta_writer.py` — `compute_and_write_deltas(conn, snapshot_id)`: reads `chain_rows` for current and previous snapshot + session base, computes per-strike diffs, writes both delta tables; sets `ref_available` correctly
+- [x] **P1-14** `ingestion/delta_writer.py` — `compute_and_write_deltas(conn, snapshot_id)`: reads `chain_rows` for current and previous snapshot + session base, computes per-strike diffs, writes both delta tables; sets `ref_available` correctly
 
 ### 1d — Analyzer Primitives (pure functions, DataFrame in/out)
 

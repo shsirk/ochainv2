@@ -2,8 +2,6 @@
 Shared pytest fixtures for OChain v2 test suite.
 """
 
-import io
-import json
 from datetime import date, datetime
 from typing import Generator
 
@@ -11,6 +9,9 @@ import duckdb
 import pandas as pd
 import pytest
 import pytz
+
+from ochain_v2.db.duckdb_store import DuckDBStore
+from ochain_v2.db.duckdb_reader import DuckDBReader
 
 IST = pytz.timezone("Asia/Kolkata")
 SAMPLE_SYMBOL = "NIFTY"
@@ -91,6 +92,18 @@ def sample_chain_df() -> pd.DataFrame:
     strikes = [atm + (i - 5) * 50 for i in range(11)]
     rows = [_make_chain_row(float(s)) for s in strikes]
     return pd.DataFrame(rows)
+
+
+@pytest.fixture
+def duck_store(duck_conn: duckdb.DuckDBPyConnection) -> DuckDBStore:
+    """DuckDBStore wired to the per-test in-memory connection."""
+    return DuckDBStore(_conn=duck_conn)
+
+
+@pytest.fixture
+def duck_reader(duck_conn: duckdb.DuckDBPyConnection) -> DuckDBReader:
+    """DuckDBReader wired to the per-test in-memory connection."""
+    return DuckDBReader("", _conn=duck_conn)
 
 
 @pytest.fixture
