@@ -187,6 +187,12 @@ async def api_analyze(
         "snapshot_ts":  snaps[to_idx]["ts"],
         "from_idx":     from_idx,
         "to_idx":       to_idx,
+        # v1-compat top-level fields
+        "bias":         summary.get("bias"),
+        "atm_strike":   summary.get("atm", {}).get("atm_strike"),
+        "atm_iv":       summary.get("atm", {}).get("atm_iv"),
+        "max_pain":     summary.get("atm", {}).get("max_pain"),
+        "pcr":          summary.get("pcr"),
         "tf_seconds":   tf_sec,
         "total_snapshots": n,
         "underlying_ltp": spot,
@@ -221,12 +227,8 @@ def _build_summary(
         atm = compute_atm(df_to, spot)
     except Exception:
         atm = {}
-    try:
-        from ochain_v2.core.settings import get_settings
-        lot_size = get_settings().instruments.active  # use default
-        lot_size = 50  # safe fallback
-    except Exception:
-        lot_size = 50
+    _LOT_DEFAULTS = {"NIFTY": 75, "BANKNIFTY": 30, "FINNIFTY": 65, "MIDCPNIFTY": 120}
+    lot_size = _LOT_DEFAULTS.get(symbol, 50)
     try:
         gex = compute_gex(df_to, spot, lot_size)
     except Exception:
@@ -248,6 +250,28 @@ def _build_summary(
     except Exception:
         iv_smile = {}
 
+    # Bias — mirrors v1's PCR-based heuristic so compare_v1_v2.py passes
+    pcr_oi = pcr.get("pcr_oi", 1.0) if pcr else 1.0
+    if pcr_oi > 1.3:
+        bias = {
+            "direction":  "BULLISH",
+            "reason":     "High PCR — heavy PE writing indicates support",
+            "confidence": round(min(pcr_oi / 2, 1.0), 4),
+        }
+    elif pcr_oi < 0.7:
+        safe_pcr = pcr_oi if pcr_oi > 0 else 0.01
+        bias = {
+            "direction":  "BEARISH",
+            "reason":     "Low PCR — heavy CE writing indicates resistance",
+            "confidence": round(min((1 / safe_pcr) / 2, 1.0), 4),
+        }
+    else:
+        bias = {
+            "direction":  "NEUTRAL",
+            "reason":     "PCR near 1 — no clear directional bias",
+            "confidence": 0.3,
+        }
+
     return {
         "pcr": pcr,
         "atm": atm,
@@ -255,11 +279,23 @@ def _build_summary(
         "support_resistance": sr,
         "expected_move": em,
         "iv_smile": iv_smile,
+        "bias": bias,
     }
 
 
 def _df_to_records(df: pd.DataFrame) -> list[dict]:
     if df is None or df.empty:
         return []
-    # Replace NaN with None for JSON serialisation
+    # Convert datetime columns to ISO strings, replace NaN with None
+    df = df.copy()
+    for col in df.select_dtypes(include=["datetime64[ns, UTC]", "datetime64[ns]", "datetimetz"]).columns:
+        df[col] = df[col].dt.strftime("%Y-%m-%dT%H:%M:%S%z")
+    # Also catch object columns holding Timestamps
+    for col in df.select_dtypes(include="object").columns:
+        try:
+            sample = df[col].dropna().iloc[0] if not df[col].dropna().empty else None
+            if isinstance(sample, pd.Timestamp):
+                df[col] = df[col].apply(lambda v: v.isoformat() if pd.notna(v) else None)
+        except Exception:
+            pass
     return df.where(pd.notna(df), other=None).to_dict(orient="records")

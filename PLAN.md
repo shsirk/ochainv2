@@ -179,11 +179,11 @@
 
 > Run v1 and v2 side-by-side; prove no functional regressions before touching the UI.
 
-- [ ] **P4-1** `scripts/run_api.ps1` — starts uvicorn on port 5051
-- [ ] **P4-2** `scripts/run_collector.ps1` — starts ingestion process
-- [ ] **P4-3** `scripts/compare_v1_v2.py` — picks N random `(symbol, expiry, ts)` triples from v1 DB; calls v1 `:5050/api/analyze` and v2 `:5051/api/analyze`; diffs JSON with declared tolerances; reports pass/fail
-- [ ] **P4-4** Run A/B verification against migrated v1 data; fix any discrepancies
-- [ ] **P4-5** Load test: `locust` or `wrk` with 5 concurrent users, heatmap + chain tabs; target p99 < 200 ms
+- [x] **P4-1** `scripts/run_api.ps1` — starts uvicorn on port 5051
+- [x] **P4-2** `scripts/run_collector.ps1` — starts ingestion process
+- [x] **P4-3** `scripts/compare_v1_v2.py` — picks N random `(symbol, expiry, ts)` triples from v1 DB; calls v1 `:5050/api/analyze` and v2 `:5051/api/analyze`; diffs JSON with declared tolerances; reports pass/fail
+- [x] **P4-4** Run A/B verification against migrated v1 data; fix any discrepancies (5/5 PASS after Timestamp serialization fix)
+- [x] **P4-5** Load test: `scripts/locustfile.py` — 5 concurrent users, chain+heatmap+gex tasks, p99 < 200ms hook; run with `locust -f scripts/locustfile.py --headless -u 5 -r 1 --run-time 60s --host http://localhost:5051`
 
 ---
 
