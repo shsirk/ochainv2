@@ -81,15 +81,15 @@
 
 ### 1e — Strategy Layer
 
-- [ ] **P1-24** `analyzers/strategies/base.py` — `TradingStrategy` Protocol: `name`, `signals(ctx)`, `metrics(ctx)`, `description`; `AnalysisContext` dataclass
-- [ ] **P1-25** `analyzers/strategies/registry.py` — `register(strategy)`, `get(name)`, `list_all()`
-- [ ] **P1-26** `analyzers/strategies/naked_buyer.py` — ported from v1 scalper logic
-- [ ] **P1-27** `analyzers/strategies/naked_seller.py` — writer-positioning, IV harvest signals
-- [ ] **P1-28** `analyzers/strategies/straddle.py` — vol direction, event playbook
-- [ ] **P1-29** `analyzers/strategies/strangle.py`
-- [ ] **P1-30** `analyzers/strategies/spread.py` — bull/bear vertical analysis
-- [ ] **P1-31** `analyzers/strategies/iron_condor.py` — range-bound regime detection
-- [ ] **P1-32** `analyzers/strategies/gamma_scalper.py` — dealer gamma map signals
+- [x] **P1-24** `analyzers/strategies/base.py` — `TradingStrategy` Protocol: `name`, `signals(ctx)`, `metrics(ctx)`, `description`; `AnalysisContext` dataclass
+- [x] **P1-25** `analyzers/strategies/registry.py` — `register(strategy)`, `get(name)`, `list_all()`
+- [x] **P1-26** `analyzers/strategies/naked_buyer.py` — ported from v1 scalper logic
+- [x] **P1-27** `analyzers/strategies/naked_seller.py` — writer-positioning, IV harvest signals
+- [x] **P1-28** `analyzers/strategies/straddle.py` — vol direction, event playbook
+- [x] **P1-29** `analyzers/strategies/strangle.py`
+- [x] **P1-30** `analyzers/strategies/spread.py` — bull/bear vertical analysis
+- [x] **P1-31** `analyzers/strategies/iron_condor.py` — range-bound regime detection
+- [x] **P1-32** `analyzers/strategies/gamma_scalper.py` — dealer gamma map signals
 
 ### 1f — Legacy Migration Tool
 
