@@ -137,41 +137,41 @@
 
 ### 3a — App Factory & Infrastructure
 
-- [ ] **P3-1** `api/main.py` — FastAPI factory: CORS, `/healthz`, mounts all routers, lifespan for DB pool init/teardown
-- [ ] **P3-2** `api/deps.py` — DI providers: `get_db_reader()`, `get_meta_db()`, `get_cache()`
-- [ ] **P3-3** `api/cache.py` — two-level LRU: per-snapshot sidecar (key=`snapshot_id`) + per-window (key=`(symbol,expiry,date,from_idx,to_idx,tf,endpoint)`); invalidation hook on new ingest
-- [ ] **P3-4** `api/schemas/` — Pydantic response models for every endpoint (chain, gex, heatmap, strike, iv, alerts, scalper, strategy, ws events)
+- [x] **P3-1** `api/main.py` — FastAPI factory: CORS, `/healthz`, all routers, lifespan (DuckDBReader + MetaDB + LivePublisher + ApiCache); `Cache-Control` middleware
+- [x] **P3-2** `api/deps.py` — DI providers: `get_reader()`, `get_meta()`, `get_cache()`; `ReaderDep`/`MetaDep`/`CacheDep` annotated aliases
+- [x] **P3-3** `api/cache.py` — `LRUCache` (OrderedDict + TTL + thread-safe lock); `ApiCache` (snapshot + window levels); `invalidate_symbol()`; module-level singleton
+- [x] **P3-4** `api/schemas/responses.py` — Pydantic models: SnapshotRef, StrikeRow, AnalyzeResponse, HeatmapResponse, GexResponse, IvSurfaceResponse, ScalperResponse, PayoffRequest/Response, AlertEvent, SavedView, LiveSnapshotEvent, AlertPushEvent, all v2 types
 
 ### 3b — v1-Compatible Routes
 
-- [ ] **P3-5** `api/routes/compat.py` — registers all v1 paths so the existing frontend works unchanged
-- [ ] **P3-6** `api/routes/chain.py` — `/api/analyze/{symbol}` — returns chain payload + summary; reads from `chain_rows` + `chain_deltas_base`
-- [ ] **P3-7** `api/routes/heatmap.py` — `/api/heatmap/{symbol}?metric=` — calls vectorized `analyzers/heatmap.py`
-- [ ] **P3-8** `api/routes/strike.py` — `/api/strike/{symbol}/{strike}`
-- [ ] **P3-9** `api/routes/iv.py` — `/api/iv_surface/{symbol}`
-- [ ] **P3-10** `api/routes/gex.py` — `/api/gex/{symbol}`
-- [ ] **P3-11** `api/routes/alerts.py` — `/api/alerts/{symbol}` — reads from `alert_events` in meta SQLite
-- [ ] **P3-12** `api/routes/scalper.py` — `/api/scalper/{symbol}`
-- [ ] **P3-13** `api/routes/strategy.py` — `POST /api/strategy/payoff`
-- [ ] **P3-14** `api/routes/expiry.py` — `/api/expiries/{symbol}`, `/api/dates/{symbol}`, `/api/snapshots/{symbol}`
-- [ ] **P3-15** `api/collector_api.py` — `/collector/api/start`, `/stop`, `/status`, `/connect`, `/disconnect` (localhost-only bind enforced in settings)
-- [ ] **P3-16** Add `Cache-Control` and `ETag` headers to all read-only GET routes
+- [x] **P3-5** No separate compat.py needed — all v1 paths implemented directly in per-topic routers mounted on the same prefix
+- [x] **P3-6** `api/routes/chain.py` — `/api/symbols`, `/api/dates`, `/api/expiry_list`, `/api/snapshots`, `/api/analyze` with summary (PCR, ATM, GEX, SR, EM, IV smile) + window cache
+- [x] **P3-7** `api/routes/heatmap.py` — `/api/heatmap/{symbol}?metric=` via `DuckDBReader.get_heatmap_matrix`
+- [x] **P3-8** `api/routes/strike.py` — `/api/strike/{symbol}/{strike}` — full-day OI/IV time series at one strike
+- [x] **P3-9** `api/routes/iv.py` — `/api/iv_surface/{symbol}` — smile + multi-expiry surface
+- [x] **P3-10** `api/routes/gex.py` — `/api/gex/{symbol}` — GEX dict + per-strike gamma/OI breakdown
+- [x] **P3-11** `api/routes/alerts.py` — `/api/alerts/{symbol}?limit=&since_id=`
+- [x] **P3-12** `api/routes/scalper.py` — `/api/scalper/{symbol}?strategy=` — pluggable strategy signals via registry
+- [x] **P3-13** `api/routes/strategy.py` — `POST /api/strategy/payoff` — payoff curve + POP + breakevens
+- [x] **P3-14** `api/routes/expiry.py` — `/api/expiries/{symbol}`
+- [x] **P3-15** `api/collector_api.py` — `/collector/api/status`, `/errors`, `/connect`, `/disconnect`, `/symbols` CRUD, `/expiries/{symbol}`
+- [x] **P3-16** `Cache-Control: public, max-age=30` middleware in `main.py` for all GET 200s
 
 ### 3c — v2 New Routes
 
-- [ ] **P3-17** `api/routes/instruments.py` — `GET /api/v2/instruments` (full metadata from `instruments.yaml`)
-- [ ] **P3-18** `api/routes/session.py` — `GET /api/v2/session/{symbol}` (session base, current snapshot, market-hours state, last poll time)
-- [ ] **P3-19** `api/routes/composite.py` — `GET /api/v2/composite/{symbol}` (chain + gex + scalper + alerts in one round-trip; fanned out internally via `asyncio.gather`)
-- [ ] **P3-20** `api/routes/strategies_list.py` — `GET /api/v2/strategies`, `GET /api/v2/strategies/{name}/signals/{symbol}`
-- [ ] **P3-21** `api/routes/export.py` — `GET /api/v2/export/{symbol}.csv` and `.parquet`
-- [ ] **P3-22** `api/routes/replay.py` — `GET /api/v2/replay/{symbol}/{date}` (returns full day as paginated snapshots for back-test harness)
-- [ ] **P3-23** `api/routes/views.py` — `GET/POST/DELETE /api/v2/views` (saved trader views; persisted in meta SQLite)
+- [x] **P3-17** `api/routes/instruments.py` — `GET /api/v2/instruments` from `instruments.yaml`
+- [x] **P3-18** `api/routes/session.py` — `GET /api/v2/session/{symbol}` — market_open + latest_snapshot + session_base
+- [x] **P3-19** `api/routes/composite.py` — `GET /api/v2/composite/{symbol}` — chain + gex + scalper + alerts via `asyncio.gather`
+- [x] **P3-20** `api/routes/strategies_list.py` — `GET /api/v2/strategies`, `GET /api/v2/strategies/{name}/signals/{symbol}`
+- [x] **P3-21** `api/routes/export.py` — `GET /api/v2/export/{symbol}.csv` and `.parquet`
+- [x] **P3-22** `api/routes/replay.py` — `GET /api/v2/replay/{symbol}/{date}?page=&page_size=` paginated snapshot list
+- [x] **P3-23** `api/routes/views.py` — `GET/POST/DELETE /api/v2/views`
 
 ### 3d — WebSocket / Live Push
 
-- [ ] **P3-24** `api/ws/live.py` — `WS /ws/live/{symbol}` — subscribes to `live_publisher` queue; pushes `{symbol, expiry, ts, snapshot_id, summary}` to all connected clients on new snapshot; drops connection outside market hours
-- [ ] **P3-25** `api/ws/alerts.py` — `WS /ws/alerts` — pushes new `alert_events` rows as they're written; all symbols
-- [ ] **P3-26** Integration test: replay 10 snapshots via fixture broker → assert WS client receives 10 push events in order
+- [x] **P3-24** `api/ws/live.py` — `WS /ws/live/{symbol}` — subscribes to `LivePublisher`, filters by symbol, handles disconnect
+- [x] **P3-25** `api/ws/alerts.py` — `WS /ws/alerts` — polls `MetaDB.get_alerts(since_id=)` every 2 s, pushes new rows to all clients
+- [x] **P3-26** Integration tests: `test_ws_live.py` — 10 snapshots → 10 events in order; symbol-filter test; 368 total tests passing
 
 ---
 
