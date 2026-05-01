@@ -38,6 +38,10 @@ def main() -> None:
                        help="Path to v1 ochain.db SQLite file")
     p_mig.add_argument("--to", dest="target", default=None,
                        help="Target DuckDB path (defaults to settings value)")
+    p_mig.add_argument("--symbol", default=None,
+                       help="Migrate only this symbol (e.g. NIFTY)")
+    p_mig.add_argument("--dry-run", action="store_true",
+                       help="Parse and count rows without writing to DuckDB")
 
     # archive
     p_arc = sub.add_parser("archive", help="Archive snapshots older than N days to Parquet")
@@ -93,8 +97,8 @@ def _run_collector(args: argparse.Namespace) -> None:
 
 
 def _run_migrate(args: argparse.Namespace) -> None:
-    print(f"[ochain_v2] Migrating from v1 DB: {args.source}")
-    print("  (Not implemented yet — Phase 1f)")
+    from ochain_v2.cli.migrate import run
+    run(args)
 
 
 def _run_archive(args: argparse.Namespace) -> None:

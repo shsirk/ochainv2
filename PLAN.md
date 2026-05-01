@@ -93,9 +93,9 @@
 
 ### 1f — Legacy Migration Tool
 
-- [ ] **P1-33** `db/legacy_sqlite.py` — reads v1 `ochain.db`, parses `raw_json` blobs, streams into DuckDB via `duckdb_store.save_snapshot()`
-- [ ] **P1-34** `cli/migrate.py` — `python -m ochain_v2 migrate --from /path/to/ochain.db` CLI command
-- [ ] **P1-35** Integration test: migrate v1 `ochain.db` → v2 DuckDB, assert row counts match
+- [x] **P1-33** `db/legacy_sqlite.py` — reads v1 `ochain.db`, parses `raw_json` blobs, streams into DuckDB via `duckdb_store.save_snapshot()`
+- [x] **P1-34** `cli/migrate.py` — `python -m ochain_v2 migrate --from /path/to/ochain.db` CLI command
+- [x] **P1-35** Integration test: migrate v1 `ochain.db` → v2 DuckDB, assert row counts match
 
 ---
 
