@@ -1,5 +1,5 @@
 import { apiFetch, analyzeUrl } from '../core/api.js';
-import { showSkeletonCharts, hideSkeleton } from '../components/skeleton.js';
+import { hideSkeleton } from '../components/skeleton.js';
 import { showError, clearError } from '../components/error-state.js';
 import { fmt, fmtInt, fmtPct, chgClass, buildupClass, themeColors, chartColors, defaultChartOpts, destroyChart } from '../utils.js';
 
@@ -57,40 +57,49 @@ export async function load(container, s) {
     _ctrl = new AbortController();
     clearError(container);
 
-    const charts = container.querySelector('#chainCharts');
-    showSkeletonCharts(charts, 3);
+    // Show skeleton below charts while loading; don't wipe canvases
+    const tbody = container.querySelector('#chainBody');
+    if (tbody) {
+        tbody.innerHTML = '<tr><td colspan="15" style="text-align:center;padding:1.5rem;color:var(--text-dim)">Loading…</td></tr>';
+    }
 
     try {
         const data = await apiFetch(analyzeUrl(s), _ctrl.signal);
-        hideSkeleton(charts);
-
         window.dispatchEvent(new CustomEvent('ochain:chainData', { detail: data }));
-
         _renderCharts(container, data);
         _renderTable(container, data);
     } catch (err) {
         if (err.name === 'AbortError') return;
-        hideSkeleton(charts);
+        if (tbody) tbody.innerHTML = '';
         showError(container, err.message, () => load(container, s));
     }
 }
 
 function _renderCharts(container, data) {
     const strikes  = (data.strikes || []);
-    const atm      = data.summary?.atm?.atm_strike;
-    const t        = themeColors();
+    const deltas   = data.deltas   || null;
     const c        = chartColors(0.75);
     const baseOpts = defaultChartOpts();
 
+    // Build delta lookup by strike for OI change computation
+    const deltaMap = {};
+    if (deltas) deltas.forEach(r => { deltaMap[r.strike] = r; });
+
     const labels   = strikes.map(r => r.strike);
-    const ceOI     = strikes.map(r => r.CE_openInterest || r.ce_oi || 0);
-    const peOI     = strikes.map(r => r.PE_openInterest || r.pe_oi || 0);
-    const ceChg    = strikes.map(r => r.CE_changeinOpenInterest || r.ce_oi_chg || 0);
-    const peChg    = strikes.map(r => r.PE_changeinOpenInterest || r.pe_oi_chg || 0);
-    const ceIV     = strikes.map(r => r.CE_impliedVolatility || r.ce_iv || null);
-    const peIV     = strikes.map(r => r.PE_impliedVolatility || r.pe_iv || null);
-    const cePrem   = strikes.map(r => r.CE_lastPrice || r.ce_ltp || 0);
-    const pePrem   = strikes.map(r => r.PE_lastPrice || r.pe_ltp || 0);
+    const ceOI     = strikes.map(r => r.ce_oi    || 0);
+    const peOI     = strikes.map(r => r.pe_oi    || 0);
+    const ceChg    = strikes.map(r => {
+        const prev = deltaMap[r.strike];
+        return prev != null ? (r.ce_oi || 0) - (prev.ce_oi || 0) : 0;
+    });
+    const peChg    = strikes.map(r => {
+        const prev = deltaMap[r.strike];
+        return prev != null ? (r.pe_oi || 0) - (prev.pe_oi || 0) : 0;
+    });
+    const ceIV     = strikes.map(r => r.ce_iv  ?? null);
+    const peIV     = strikes.map(r => r.pe_iv  ?? null);
+    const cePrem   = strikes.map(r => r.ce_ltp || 0);
+    const pePrem   = strikes.map(r => r.pe_ltp || 0);
     const straddle = strikes.map((r, i) => (cePrem[i] || 0) + (pePrem[i] || 0));
 
     _chartOI = destroyChart(_chartOI);
@@ -145,28 +154,28 @@ function _renderTable(container, data) {
     const deltaMap  = {};
     if (deltas) deltas.forEach(r => { deltaMap[r.strike] = r; });
 
-    const maxOI = Math.max(...strikes.map(r => Math.max(r.CE_openInterest || r.ce_oi || 0, r.PE_openInterest || r.pe_oi || 0)), 1);
+    const maxOI = Math.max(...strikes.map(r => Math.max(r.ce_oi || 0, r.pe_oi || 0)), 1);
 
     tbody.innerHTML = '';
     strikes.forEach(row => {
-        const strike  = row.strike;
-        const prev    = deltaMap[strike];
-        const ceOI    = row.CE_openInterest   || row.ce_oi   || 0;
-        const peOI    = row.PE_openInterest   || row.pe_oi   || 0;
-        const ceChg   = row.CE_changeinOpenInterest || row.ce_oi_chg || (prev ? (row.CE_openInterest - prev.CE_openInterest) : null);
-        const peChg   = row.PE_changeinOpenInterest || row.pe_oi_chg || (prev ? (row.PE_openInterest - prev.PE_openInterest) : null);
-        const ceVol   = row.CE_totalTradedVolume || row.ce_vol || 0;
-        const peVol   = row.PE_totalTradedVolume || row.pe_vol || 0;
-        const ceIV    = row.CE_impliedVolatility || row.ce_iv;
-        const peIV    = row.PE_impliedVolatility || row.pe_iv;
-        const ceLTP   = row.CE_lastPrice || row.ce_ltp;
-        const peLTP   = row.PE_lastPrice || row.pe_ltp;
-        const ceLTPChg = row.CE_change   || row.ce_ltp_chg;
-        const peLTPChg = row.PE_change   || row.pe_ltp_chg;
-        const ceBU    = row.ce_buildup   || row.CE_buildup   || '';
-        const peBU    = row.pe_buildup   || row.PE_buildup   || '';
-        const ceBar   = Math.round((ceOI / maxOI) * 100);
-        const peBar   = Math.round((peOI / maxOI) * 100);
+        const strike   = row.strike;
+        const prev     = deltaMap[strike];
+        const ceOI     = row.ce_oi     || 0;
+        const peOI     = row.pe_oi     || 0;
+        const ceChg    = prev != null ? (ceOI - (prev.ce_oi || 0)) : null;
+        const peChg    = prev != null ? (peOI - (prev.pe_oi || 0)) : null;
+        const ceVol    = row.ce_volume || 0;
+        const peVol    = row.pe_volume || 0;
+        const ceIV     = row.ce_iv;
+        const peIV     = row.pe_iv;
+        const ceLTP    = row.ce_ltp;
+        const peLTP    = row.pe_ltp;
+        const ceLTPChg = prev != null ? ((ceLTP || 0) - (prev.ce_ltp || 0)) : null;
+        const peLTPChg = prev != null ? ((peLTP || 0) - (prev.pe_ltp || 0)) : null;
+        const ceBU     = row.ce_buildup || '';
+        const peBU     = row.pe_buildup || '';
+        const ceBar    = Math.round((ceOI / maxOI) * 100);
+        const peBar    = Math.round((peOI / maxOI) * 100);
         const isATM   = atm && Math.abs(strike - atm) < 1;
         const isMaxP  = maxPain && Math.abs(strike - maxPain) < 1;
 
@@ -210,16 +219,16 @@ function _downloadCSV() {
     rows.forEach(r => {
         lines.push([
             r.strike,
-            r.CE_openInterest || r.ce_oi || 0,
-            r.CE_changeinOpenInterest || r.ce_oi_chg || 0,
-            r.CE_totalTradedVolume || r.ce_vol || 0,
-            r.CE_impliedVolatility || r.ce_iv || '',
-            r.CE_lastPrice || r.ce_ltp || '',
-            r.PE_lastPrice || r.pe_ltp || '',
-            r.PE_impliedVolatility || r.pe_iv || '',
-            r.PE_totalTradedVolume || r.pe_vol || 0,
-            r.PE_changeinOpenInterest || r.pe_oi_chg || 0,
-            r.PE_openInterest || r.pe_oi || 0,
+            r.ce_oi || 0,
+            r.ce_oi_chg || 0,
+            r.ce_volume || 0,
+            r.ce_iv || '',
+            r.ce_ltp || '',
+            r.pe_ltp || '',
+            r.pe_iv || '',
+            r.pe_volume || 0,
+            r.pe_oi_chg || 0,
+            r.pe_oi || 0,
         ].join(','));
     });
     const blob = new Blob([lines.join('\n')], { type: 'text/csv' });

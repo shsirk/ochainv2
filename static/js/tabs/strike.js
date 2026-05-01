@@ -1,5 +1,4 @@
 import { apiFetch, strikeUrl } from '../core/api.js';
-import { showSkeleton, showSkeletonCharts, hideSkeleton } from '../components/skeleton.js';
 import { showError, clearError } from '../components/error-state.js';
 import {
     fmt, fmtInt, fmtPct, themeColors, chartColors,
@@ -88,16 +87,17 @@ async function _loadStrike(container, s, strike) {
     const sig = _ctrl.signal;
 
     clearError(container);
-    showSkeletonCharts(container.querySelector('.strike-charts'), 4);
 
     try {
         const data = await apiFetch(strikeUrl(s, strike), sig);
-        hideSkeleton(container.querySelector('.strike-charts'));
+        // Transform flat rows into ce/pe series for chart rendering
+        const rows = data.rows || [];
+        data.ce = rows.map(r => ({ ts: r.ts, oi: r.ce_oi || 0, vol: r.ce_volume || 0, ltp: r.ce_ltp, iv: r.ce_iv, buildup: r.ce_buildup || '' }));
+        data.pe = rows.map(r => ({ ts: r.ts, oi: r.pe_oi || 0, vol: r.pe_volume || 0, ltp: r.pe_ltp, iv: r.pe_iv, buildup: r.pe_buildup || '' }));
         _renderCharts(container, data);
         _renderBuildup(container, data);
     } catch (err) {
         if (err.name === 'AbortError') return;
-        hideSkeleton(container.querySelector('.strike-charts'));
         showError(container, err.message || 'Failed to load strike data', () => _loadStrike(container, s, strike));
     }
 }
@@ -107,7 +107,10 @@ function _populateSelect(container, strikes) {
     if (!sel) return;
     const current = sel.value;
     sel.innerHTML = '<option value="">— select —</option>' +
-        strikes.map(k => `<option value="${k}"${String(k) === current ? ' selected' : ''}>${fmtInt(k)}</option>`).join('');
+        strikes.map(k => {
+            const v = k?.strike ?? k;
+            return `<option value="${v}"${String(v) === current ? ' selected' : ''}>${fmtInt(v)}</option>`;
+        }).join('');
 }
 
 function _renderCharts(container, data) {

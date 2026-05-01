@@ -14,9 +14,14 @@ export function init(container) {
 <div class="heatmap-controls">
   <label>Metric</label>
   <select id="hmMetric">
-    <option value="oi_change" selected>OI Change</option>
-    <option value="oi">OI</option>
-    <option value="iv">IV</option>
+    <option value="ce_oi" selected>CE OI</option>
+    <option value="pe_oi">PE OI</option>
+    <option value="ce_iv">CE IV</option>
+    <option value="pe_iv">PE IV</option>
+    <option value="ce_volume">CE Volume</option>
+    <option value="pe_volume">PE Volume</option>
+    <option value="ce_ltp">CE LTP</option>
+    <option value="pe_ltp">PE LTP</option>
   </select>
 </div>
 <div id="hmHost"></div>
@@ -41,7 +46,7 @@ export async function load(container, s) {
     clearError(container);
     showSkeleton(host, 4);
 
-    const metric = container.querySelector('#hmMetric')?.value || 'oi_change';
+    const metric = container.querySelector('#hmMetric')?.value || 'ce_oi';
 
     try {
         const data = await apiFetch(heatmapUrl(s, metric), sig);
@@ -110,7 +115,7 @@ function _renderHeatmap(host, data, metric) {
     const CELL_H   = 20;
     const LABEL_W  = 60;
     const tc       = themeColors();
-    const diverging = metric === 'oi_change';
+    const diverging = false; // all current metrics are non-negative; use sequential scale
 
     // flatten for normalization
     const flat = matrix.flatMap(row => row.map(v => v ?? 0));

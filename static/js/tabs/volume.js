@@ -38,16 +38,16 @@ export async function load(container, s) {
     showSkeleton(host, 4);
 
     try {
-        const [volChgData, volData] = await Promise.all([
-            apiFetch(heatmapUrl(s, 'volume_change'), sig),
-            apiFetch(heatmapUrl(s, 'volume'), sig),
+        const [ceVolData, peVolData] = await Promise.all([
+            apiFetch(heatmapUrl(s, 'ce_volume'), sig),
+            apiFetch(heatmapUrl(s, 'pe_volume'), sig),
         ]);
 
         hideSkeleton(host);
 
-        _renderKPIs(container, volData, volChgData);
-        _renderSpikes(container, volChgData);
-        _renderHeatmap(host, volChgData, container);
+        _renderKPIs(container, ceVolData, peVolData);
+        _renderSpikes(container, ceVolData);
+        _renderHeatmap(host, ceVolData, container);
     } catch (err) {
         if (err.name === 'AbortError') return;
         hideSkeleton(host);
@@ -55,24 +55,15 @@ export async function load(container, s) {
     }
 }
 
-function _renderKPIs(container, volData, volChgData) {
-    const matrix  = volData.matrix  || [];
-    const strikes = volData.strikes || [];
+function _renderKPIs(container, ceVolData, peVolData) {
+    const ceMatrix = ceVolData.matrix || [];
+    const peMatrix = peVolData.matrix || [];
 
-    if (!matrix.length) return;
+    if (!ceMatrix.length && !peMatrix.length) return;
 
-    const mid = Math.floor(strikes.length / 2);
-    let ceVol = 0, peVol = 0;
-
-    // Use strike index parity: below midpoint = PE range, above = CE range (proxy split)
-    matrix.forEach((row, ri) => {
-        const rowSum = row.reduce((acc, v) => acc + (v ?? 0), 0);
-        if (ri >= mid) {
-            ceVol += rowSum;
-        } else {
-            peVol += rowSum;
-        }
-    });
+    const sumMatrix = m => m.reduce((acc, row) => acc + row.reduce((a, v) => a + (v ?? 0), 0), 0);
+    const ceVol = sumMatrix(ceMatrix);
+    const peVol = sumMatrix(peMatrix);
 
     const ratio = ceVol ? (peVol / ceVol).toFixed(2) : '—';
 
