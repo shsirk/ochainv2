@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OChain — Option Chain Analysis</title>
+    <script>
+        (function(){
+            try{var t=localStorage.getItem('ochain.theme');if(t==='"light"')document.documentElement.setAttribute('data-theme','light');}catch(e){}
+        })();
+    </script>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <header id="appHeader">
+        <div class="header-left">
+            <h1>OChain</h1>
+            <a href="/collector" class="collector-link">Collector</a>
+        </div>
+        <div class="header-controls" id="headerControls">
+            <div class="symbol-pills" id="symbolPills"></div>
+            <label class="hdr-label">Expiry</label>
+            <select id="expirySelect"><option>—</option></select>
+            <label class="hdr-label">Date</label>
+            <select id="dateSelect"><option>—</option></select>
+            <label class="hdr-label">TF</label>
+            <select id="tfSelect">
+                <option value="1m" selected>1m</option>
+                <option value="5m">5m</option>
+                <option value="15m">15m</option>
+                <option value="30m">30m</option>
+                <option value="1h">1h</option>
+            </select>
+            <button id="liveBtn" class="live-btn hidden" title="Live Mode">&#9679; Live</button>
+            <button id="themeBtn" class="theme-toggle" title="Toggle theme">
+                <span class="icon-sun">&#9728;</span>
+                <span class="icon-moon">&#9790;</span>
+            </button>
+        </div>
+    </header>
+
+    <div id="biasBanner" class="bias-banner hidden"></div>
+
+    <section class="summary-cards" id="summaryCards">
+        <div class="card"><div class="card-label">CE OI</div><div class="card-value" id="scCeOI">—</div></div>
+        <div class="card"><div class="card-label">PE OI</div><div class="card-value" id="scPeOI">—</div></div>
+        <div class="card" id="cardPCR"><div class="card-label">PCR OI</div><div class="card-value" id="scPcrOI">—</div></div>
+        <div class="card"><div class="card-label">PCR Vol</div><div class="card-value" id="scPcrVol">—</div></div>
+        <div class="card"><div class="card-label">Max Pain</div><div class="card-value" id="scMaxPain">—</div></div>
+        <div class="card"><div class="card-label">ATM IV</div><div class="card-value" id="scAtmIV">—</div></div>
+        <div class="card"><div class="card-label">Exp Move</div><div class="card-value" id="scExpMove">—</div></div>
+        <div class="card"><div class="card-label">Support</div><div class="card-value" id="scSupport">—</div></div>
+        <div class="card"><div class="card-label">Resistance</div><div class="card-value" id="scResistance">—</div></div>
+        <div class="card"><div class="card-label">GEX</div><div class="card-value" id="scGex">—</div></div>
+    </section>
+
+    <section class="slider-section">
+        <div class="range-header">
+            <span class="range-labels">
+                <span class="range-tag from-tag">From</span>
+                <span id="fromLabel">—</span>
+                <span class="range-sep">&#8594;</span>
+                <span class="range-tag to-tag">To</span>
+                <span id="toLabel">—</span>
+                <span id="baseIndicator" class="base-indicator hidden">(vs Day Base)</span>
+            </span>
+            <span class="range-actions">
+                <span id="snapCount">0 snapshots</span>
+                <button id="resetBaseBtn" title="Reset From to session base">&#8635; Base</button>
+                <button id="playBtn" title="Auto-advance">&#9654; Play</button>
+            </span>
+        </div>
+        <div class="range-slider" id="rangeSlider">
+            <div class="range-track"></div>
+            <div class="range-selected" id="rangeSelected"></div>
+            <div class="range-thumb thumb-from" id="thumbFrom" tabindex="0"></div>
+            <div class="range-thumb thumb-to"   id="thumbTo"   tabindex="0"></div>
+        </div>
+        <div class="range-timeline" id="rangeTimeline"></div>
+    </section>
+
+    <nav class="tab-nav" id="tabNav">
+        <button class="tab-btn active" data-tab="chain">Chain</button>
+        <button class="tab-btn" data-tab="flow">Flow/GEX</button>
+        <button class="tab-btn" data-tab="heatmap">Heatmap</button>
+        <button class="tab-btn" data-tab="volume">Volume</button>
+        <button class="tab-btn" data-tab="strike">Strike Drill</button>
+        <button class="tab-btn" data-tab="iv">IV Surface</button>
+        <button class="tab-btn" data-tab="expiry">Multi-Expiry</button>
+        <button class="tab-btn" data-tab="strategy">Strategy</button>
+        <button class="tab-btn" data-tab="scalper">Scalper</button>
+        <button class="tab-btn" data-tab="signals">Signals</button>
+    </nav>
+
+    <main>
+        <section class="tab-content active" id="tab-chain"></section>
+        <section class="tab-content"        id="tab-flow"></section>
+        <section class="tab-content"        id="tab-heatmap"></section>
+        <section class="tab-content"        id="tab-volume"></section>
+        <section class="tab-content"        id="tab-strike"></section>
+        <section class="tab-content"        id="tab-iv"></section>
+        <section class="tab-content"        id="tab-expiry"></section>
+        <section class="tab-content"        id="tab-strategy"></section>
+        <section class="tab-content"        id="tab-scalper"></section>
+        <section class="tab-content"        id="tab-signals"></section>
+    </main>
+
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script type="module" src="/static/js/app.js"></script>
+</body>
+</html>

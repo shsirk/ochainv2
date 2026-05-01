@@ -27,8 +27,11 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from fastapi import FastAPI
+import pathlib
+
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 log = logging.getLogger(__name__)
 
@@ -148,6 +151,24 @@ def create_app(
     if include_collector_api:
         from ochain_v2.api.collector_api import router as col_router
         app.include_router(col_router)
+
+    # Static files + HTML UI
+    _root = pathlib.Path(__file__).parent.parent.parent.parent  # project root
+    _static = _root / "static"
+    _templates = _root / "templates"
+    if _static.exists():
+        app.mount("/static", StaticFiles(directory=str(_static)), name="static")
+    if _templates.exists():
+        @app.get("/", include_in_schema=False)
+        async def serve_index():
+            return FileResponse(str(_templates / "index.html"))
+
+        @app.get("/collector", include_in_schema=False)
+        async def serve_collector():
+            p = _templates / "collector.html"
+            if p.exists():
+                return FileResponse(str(p))
+            return FileResponse(str(_templates / "index.html"))
 
     # Cache-Control + ETag on all GET responses
     @app.middleware("http")

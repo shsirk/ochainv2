@@ -187,35 +187,82 @@
 
 ---
 
-## Phase 5 — Frontend Enhancements
+## Phase 5 — Frontend (Clean Rebuild)
 
-> Enhance the existing UI for multi-instrument, live mode, and strategy switcher.
+> Full rewrite of the UI as ES modules with the same design language as v1, but with proper
+> loading states, cancellable fetches, WebSocket live mode, strategy switcher, and responsive
+> layout. No bundler — vanilla JS with `type="module"` scripts only.
+>
+> **File layout**
+> ```
+> static/
+>   css/style.css          ← ported design tokens + skeleton + toast + responsive improvements
+>   js/
+>     core/state.js        ← reactive pub/sub state; localStorage persistence
+>     core/api.js          ← fetch wrapper: AbortController, non-200 errors, JSON parse errors
+>     core/ws.js           ← WebSocket manager: auto-reconnect, symbol filter, onSnapshot/onAlert
+>     components/
+>       header.js          ← symbol pills, expiry/date/TF selects, live-toggle, theme button
+>       slider.js          ← dual-thumb range slider, play mode, timeline ticks
+>       summary.js         ← summary card updates from chain data
+>       skeleton.js        ← showSkeleton(el, rows)/hideSkeleton(el) helpers
+>       error-state.js     ← showError(el, msg, retryFn)/clearError(el)
+>       alert-toast.js     ← WS-driven toast queue (auto-dismiss, click-to-jump)
+>     tabs/
+>       chain.js           ← OI charts + chain table (click row → strike drill)
+>       flow.js            ← GEX/DEX charts + key levels + unusual activity
+>       heatmap.js         ← canvas heatmap (OI Change / OI / IV), click → strike drill
+>       volume.js          ← volume heatmap + insights panel
+>       strike.js          ← 4 line charts + buildup timeline; strike selector
+>       iv.js              ← IV smile + ATM IV intraday + Plotly 3D surface
+>       expiry.js          ← multi-expiry OI bar + per-expiry table + rollover
+>       strategy.js        ← leg builder + payoff chart + Greeks
+>       scalper.js         ← mode selector + market read + signals + COI flow + writer map
+>       signals.js         ← strategy-aware 4-column signals board
+>     app.js               ← boot: wires state → header → slider → tabs → WS
+>   index.html             ← single HTML file; all scripts type="module"
+> ```
 
-### 5a — Core JS Refactor
+### 5a — Shell & CSS
 
-- [ ] **P5-1** Reorganize `static/js/` to ES-module structure (`type="module"` in HTML, no bundler)
-- [ ] **P5-2** `js/core/state.js` — centralized app state with `localStorage` persistence keyed by `(symbol, expiry, date)`; slider position survives instrument/date switch
-- [ ] **P5-3** `js/core/api.js` — typed fetch client with error handling; replaces raw `OC.fetchJSON`; catches non-200 and parse errors
-- [ ] **P5-4** `js/core/ws.js` — WebSocket manager for `/ws/live/{symbol}` and `/ws/alerts`; auto-reconnect on drop; exposes `onSnapshot(cb)` and `onAlert(cb)` hooks
-- [ ] **P5-5** `js/components/error-boundary.js` — per-tab error display replacing silent failures
+- [x] **P5-1** `static/css/style.css` — port all v1 design tokens (CSS vars, dark/light themes, chart containers, chain table, cards, slider, tabs); add: skeleton pulse animation, toast stack, live-mode indicator, loading overlay; improve responsive to 3 breakpoints (1200px tablet, 768px mobile)
+- [x] **P5-2** `static/index.html` — single HTML shell; header with symbol pills + controls; summary cards section; slider section; 10 tab buttons + tab panes; `<script type="module" src="/static/js/app.js">`; no inline scripts except FOUC-prevention theme snippet
 
-### 5b — Multi-Instrument & Live
+### 5b — Core JS Layer
 
-- [ ] **P5-6** `js/components/header.js` — symbol pills (NIFTY / BANKNIFTY / FINNIFTY / MIDCPNIFTY) in top bar; switching persists slider position per instrument
-- [ ] **P5-7** `js/components/live-toggle.js` — visible only during market hours; when ON, subscribes to WS and auto-advances `to_idx` on each new snapshot
-- [ ] **P5-8** `js/components/alert-toast.js` — subscribes to `/ws/alerts`; shows toast per alert; click jumps to that strike + timestamp
+- [x] **P5-3** `static/js/core/state.js` — `State` class: `get(key)`, `set(key, val)`, `subscribe(key, cb)`, `unsubscribe`; `localStorage` persistence for `symbol/expiry/date/activeTab/timeframe`; cross-tab symbol-state map so slider position is remembered per instrument
+- [x] **P5-4** `static/js/core/api.js` — `apiFetch(url, signal?)`: throws `ApiError(status, message)` on non-200; throws on network error; returns parsed JSON; `buildAnalyzeUrl(state)`, `buildHeatmapUrl(state, metric)` helpers
+- [x] **P5-5** `static/js/core/ws.js` — `WsManager`: connects to `/ws/live/{symbol}` on `connect(symbol)`; exponential back-off reconnect (1s→2s→4s→max 30s); `onSnapshot(cb)`, `onAlert(cb)`, `disconnect()`; exposes `isConnected` reactive property
 
-### 5c — Strategy & Analysis UX
+### 5c — Shared Components
 
-- [ ] **P5-9** `js/components/strategy-switcher.js` — dropdown over strategies from `GET /api/v2/strategies`; changes which strategy's signals are shown in the Signals tab
-- [ ] **P5-10** `js/tabs/signals.js` — new Signals tab backed by `/api/v2/strategies/{name}/signals/{symbol}`
-- [ ] **P5-11** `js/components/saved-views.js` — save/restore named views (symbol + expiry + slider + tab) via `/api/v2/views`
-- [ ] **P5-12** Update heatmap tab to cross-link cells to Strike Drill tab (click cell → open strike drill at that strike + ts)
-- [ ] **P5-13** Add CSV export button to chain table → calls `/api/v2/export/{symbol}.csv`
+- [x] **P5-6** `static/js/components/skeleton.js` — `showSkeleton(container, rows, cols?)` injects pulsing placeholder rows; `hideSkeleton(container)` removes them; used by every tab before data arrives
+- [x] **P5-7** `static/js/components/error-state.js` — `showError(container, message, retryFn)` replaces content with error card + Retry button; `clearError(container)`
+- [x] **P5-8** `static/js/components/summary.js` — `updateSummary(data)` writes all 10 summary card values; `updateBiasBanner(bias)`; `clearSummary()`
+- [x] **P5-9** `static/js/components/alert-toast.js` — `ToastQueue`: max 5 visible; auto-dismiss after 6s; click handler calls `state.set('jumpTo', {strike, ts})`; subscribes to `ws.onAlert`
 
-### 5d — Multi-Expiry Compare
+### 5d — Header & Slider
 
-- [ ] **P5-14** `js/tabs/expiry.js` — side-by-side two-expiry chain comparison view backed by existing expiry API
+- [x] **P5-10** `static/js/components/header.js` — symbol pills populated from `/api/symbols`; expiry select from `/api/expiry_list`; date select from `/api/dates`; TF select (1m/5m/15m/30m/1h); live-toggle button (hidden outside market hours, glowing green when active); theme toggle; every change writes to `state` which triggers cascade
+- [x] **P5-11** `static/js/components/slider.js` — dual-thumb range slider; `AbortController` per drag so only the last released position fires a full fetch; play-mode auto-advance (1500ms); reset-base button; timeline tick rendering with base/in-range colors
+
+### 5e — Tabs (all use skeleton → fetch → render or error)
+
+- [x] **P5-12** `static/js/tabs/chain.js` — OI Distribution + OI Change + IV Skew charts (Chart.js); chain table with OI bars, delta, buildup badges; max-pain + ATM row highlights; click row → `state.set('strikeDrillTarget', strike)` → switch to Strike tab; CSV export button
+- [x] **P5-13** `static/js/tabs/flow.js` — GEX/DEX horizontal bar charts; key levels panel (walls, flip, 1σ/2σ ranges); unusual activity alerts feed
+- [x] **P5-14** `static/js/tabs/heatmap.js` — canvas heatmap (OI Change / OI / IV mode selector); click cell → `state.set('strikeDrillTarget', {strike, ts})` + switch tab; tooltip overlay
+- [x] **P5-15** `static/js/tabs/volume.js` — volume heatmap (CE/PE side-by-side); insights panel (totals, ratio, top 5 spikes)
+- [x] **P5-16** `static/js/tabs/strike.js` — strike selector dropdown (from chain data); 4 line charts (OI, Volume, LTP, IV); buildup timeline bar
+- [x] **P5-17** `static/js/tabs/iv.js` — IV smile line chart (per expiry); ATM IV intraday chart; Plotly 3D surface (lazy-load Plotly from CDN only when tab first activated)
+- [x] **P5-18** `static/js/tabs/expiry.js` — multi-expiry OI stacked bar; per-expiry summary table (PCR, max pain, support, resistance); rollover activity table
+- [x] **P5-19** `static/js/tabs/strategy.js` — strategy template buttons; leg builder (add/remove rows); spot/IV/DTE inputs; POST to `/api/strategy/payoff`; payoff chart; Greeks + breakeven table
+- [x] **P5-20** `static/js/tabs/scalper.js` — mode selector (CE Buy / PE Buy / CE Sell / PE Sell); market-read indicator; signals list with strength coloring; top strikes table; COI flow bar chart; writer positioning table
+- [x] **P5-21** `static/js/tabs/signals.js` — strategy selector dropdown (from `/api/v2/strategies`); 4-column signals board; each column shows dominance strikes + signal cards; updates when strategy changes without page reload
+
+### 5f — Live Mode & Polish
+
+- [x] **P5-22** `static/js/app.js` — boot sequence: restore state from localStorage → init header → load snapshots → init slider → init all tabs → connect WS if live-toggle on; subscribe to `state` changes to cascade header → slider → active tab reload; subscribe to `ws.onSnapshot` → append to snapshots + if live-toggle on advance `toIdx` + reload active tab
+- [x] **P5-23** Serve static files from FastAPI: add `StaticFiles` mount at `/static` in `api/main.py`; add template route `GET /` → `index.html`; add `GET /collector` → `collector.html` (port v1 collector UI)
 
 ---
 
