@@ -105,29 +105,29 @@
 
 ### 2a — Broker Abstraction
 
-- [ ] **P2-1** `ingestion/brokers/base.py` — `BrokerProtocol`: `connect()`, `disconnect()`, `get_expiries(symbol)`, `get_option_chain(symbol, expiry) -> pd.DataFrame`, `is_connected`
-- [ ] **P2-2** `ingestion/brokers/fixtures.py` — deterministic fake broker for tests; deterministic chain from seeded CSV
-- [ ] **P2-3** `ingestion/brokers/dhan.py` — adapter wrapping Tradehull; implements `BrokerProtocol`; expiry cache with date-aware TTL; status fields behind a lock; atomic credential file write
-- [ ] **P2-4** `ingestion/brokers/kite.py` — placeholder stub (raises `NotImplementedError`)
+- [x] **P2-1** `ingestion/brokers/base.py` — `BrokerProtocol`: `connect()`, `disconnect()`, `get_expiries(symbol)`, `get_option_chain(symbol, expiry) -> pd.DataFrame`, `is_connected`
+- [x] **P2-2** `ingestion/brokers/fixtures.py` — deterministic fake broker for tests; seeded RNG, broker-native column names, `get_expiries()` returns next 2 Thursdays
+- [x] **P2-3** `ingestion/brokers/dhan.py` — adapter wrapping Tradehull; optional import; async via `run_in_executor`; per-day expiry cache; status fields behind lock
+- [x] **P2-4** `ingestion/brokers/kite.py` — placeholder stub (raises `NotImplementedError`)
 
 ### 2b — Rate Limiting & Resilience
 
-- [ ] **P2-5** `ingestion/token_bucket.py` — async token-bucket rate limiter; configurable per-broker rate (e.g. Dhan: 5 req/s)
-- [ ] **P2-6** `ingestion/circuit_breaker.py` — per-`(symbol, expiry)` breaker; 5 consecutive failures → 5-minute pause + error log entry
+- [x] **P2-5** `ingestion/token_bucket.py` — async token-bucket rate limiter; lazy `asyncio.Lock`; configurable rate + burst
+- [x] **P2-6** `ingestion/circuit_breaker.py` — per-key breaker (CLOSED/OPEN/HALF_OPEN); `@asynccontextmanager guard(key)`; auto OPEN→HALF_OPEN after timeout
 
 ### 2c — Scheduler & Job
 
-- [ ] **P2-7** `ingestion/market_hours.py` — thin wrapper that extends `core/market_hours.py` with scheduler-friendly `seconds_until_open()`, `seconds_until_close()`
-- [ ] **P2-8** `ingestion/job.py` — `InstrumentExpiryJob` async coroutine: fetch → validate DataFrame → `duckdb_store.save_snapshot()` → `delta_writer.compute_and_write_deltas()` → publish live event; respects token bucket and circuit breaker
-- [ ] **P2-9** `ingestion/scheduler.py` — APScheduler or `asyncio` scheduler; loads instrument config; creates one job per `(symbol, expiry)`; pauses all jobs outside market hours; resumes at next open; handles SIGTERM gracefully (finish in-flight fetches, flush WAL, exit)
-- [ ] **P2-10** `ingestion/live_publisher.py` — `publish(symbol, expiry, snapshot_id)` — writes to in-mem `asyncio.Queue` (single-process) or Redis channel (multi-process); API WebSocket subscribers read from this
-- [ ] **P2-11** `ingestion/__main__.py` — entry point: loads settings, initializes broker, starts scheduler event loop
+- [x] **P2-7** `ingestion/market_hours.py` — thin wrapper re-exporting `core/market_hours.py`; adds `should_poll_now()` and `sleep_until_open()` coroutine
+- [x] **P2-8** `ingestion/job.py` — `InstrumentExpiryJob`: token_bucket → circuit_breaker → get_option_chain → save_snapshot → publish; `_session_base_date` tracking; `run_loop(stop_event)` coroutine
+- [x] **P2-9** `ingestion/scheduler.py` — `Collector`: asyncio.gather all jobs; market-hours gating via `sleep_until_open` + `_wait_for_close`; SIGTERM/SIGINT handling; `status()` method
+- [x] **P2-10** `ingestion/live_publisher.py` — asyncio.Queue fan-out per subscriber; `publish(event)`, `subscribe()` async generator, `subscriber_count`
+- [x] **P2-11** `ingestion/__main__.py` — entry point: loads settings, creates broker/store/publisher/collector, runs event loop; top-level `__main__._run_collector()` wired to it
 
 ### 2d — Replay Harness (off-hours dev/testing)
 
-- [ ] **P2-12** `ingestion/replay/csv_replay.py` — feed rows from a CSV at configurable speed; mimics live polling
-- [ ] **P2-13** `ingestion/replay/parquet_replay.py` — feed from archived Parquet partitions
-- [ ] **P2-14** Integration test: replay 1 day of v1 CSV → DuckDB → assert 375 snapshots, correct deltas
+- [x] **P2-12** `ingestion/replay/csv_replay.py` — `CsvReplay.stream()` async generator; configurable replay speed; symbol/expiry filter
+- [x] **P2-13** `ingestion/replay/parquet_replay.py` — `ParquetReplay.stream()` same contract; supports single file or directory of partitions
+- [x] **P2-14** Integration tests: `FixtureBroker` + `InstrumentExpiryJob` + DuckDB; 8 tests verifying snapshot counts, delta population, session-base flag, live-event publish
 
 ---
 

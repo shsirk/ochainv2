@@ -31,6 +31,9 @@ def main() -> None:
     # collector
     p_col = sub.add_parser("collector", help="Start the option chain collector")
     p_col.add_argument("--config", default="config/settings.yaml")
+    p_col.add_argument("--broker", choices=["dhan", "fixture"], default=None)
+    p_col.add_argument("--symbols", nargs="+", default=None, metavar="SYMBOL")
+    p_col.add_argument("--dry-run", action="store_true")
 
     # migrate
     p_mig = sub.add_parser("migrate", help="Import data from a v1 ochain.db")
@@ -92,8 +95,9 @@ def _run_api(args: argparse.Namespace) -> None:
 
 
 def _run_collector(args: argparse.Namespace) -> None:
-    print(f"[ochain_v2] Starting collector with config: {args.config}")
-    print("  (Not implemented yet — Phase 2)")
+    import asyncio
+    from ochain_v2.ingestion.__main__ import _run
+    asyncio.run(_run(args))
 
 
 def _run_migrate(args: argparse.Namespace) -> None:
