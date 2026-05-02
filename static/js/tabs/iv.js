@@ -1,5 +1,4 @@
 import { apiFetch, ivUrl } from '../core/api.js';
-import { showSkeleton, showSkeletonCharts, hideSkeleton } from '../components/skeleton.js';
 import { showError, clearError } from '../components/error-state.js';
 import {
     fmt, fmtPct, themeColors, chartColors,
@@ -35,60 +34,61 @@ export async function load(container, s) {
     const sig = _ctrl.signal;
 
     clearError(container);
-    showSkeletonCharts(container.querySelector('.iv-grid'), 2);
-    const surfaceEl = container.querySelector('#ivSurface3D');
-    if (surfaceEl) surfaceEl.innerHTML = '<div class="skeleton-chart" style="height:100%"></div>';
 
     try {
         const data = await apiFetch(ivUrl(s), sig);
-        hideSkeleton(container.querySelector('.iv-grid'));
 
         _renderSmile(container, data.iv_smile || {});
         _renderIntraday(container, data.atm_iv_intraday || []);
         _renderSurface3D(container, data.iv_surface || null);
     } catch (err) {
         if (err.name === 'AbortError') return;
-        hideSkeleton(container.querySelector('.iv-grid'));
         showError(container, err.message || 'Failed to load IV data', () => load(container, s));
     }
 }
 
-function _renderSmile(container, smileMap) {
+function _renderSmile(container, smileData) {
     const canvas = container.querySelector('#ivSmileCanvas');
     if (!canvas) return;
     _charts.smile = destroyChart(_charts.smile);
 
-    const expiries = Object.keys(smileMap);
-    if (!expiries.length) {
+    // smileData = {strikes, ce_iv, pe_iv, expiry, dte, ...}
+    const strikes = smileData.strikes || [];
+    if (!strikes.length) {
         canvas.parentElement.innerHTML = '<div class="dim">No IV smile data</div>';
         return;
     }
 
-    const tc     = themeColors();
-    const palette = [tc.blue, tc.green, tc.pe, tc.yellow, tc.purple, tc.red];
-
-    // Collect union of all strikes
-    const allStrikes = [...new Set(
-        expiries.flatMap(exp => (smileMap[exp] || []).map(r => r.strike))
-    )].sort((a, b) => a - b);
-
-    const datasets = expiries.map((exp, i) => {
-        const rows    = smileMap[exp] || [];
-        const byStrike = Object.fromEntries(rows.map(r => [r.strike, r.iv]));
-        return {
-            label: exp,
-            data: allStrikes.map(k => byStrike[k] ?? null),
-            borderColor: palette[i % palette.length],
-            backgroundColor: 'transparent',
-            tension: 0.3,
-            pointRadius: 2,
-            spanGaps: true,
-        };
-    });
+    const tc      = themeColors();
+    const expLabel = smileData.expiry || '';
+    const ceIV    = smileData.ce_iv || [];
+    const peIV    = smileData.pe_iv || [];
 
     _charts.smile = new Chart(canvas, {
         type: 'line',
-        data: { labels: allStrikes.map(String), datasets },
+        data: {
+            labels: strikes.map(String),
+            datasets: [
+                {
+                    label: `CE IV${expLabel ? ' (' + expLabel + ')' : ''}`,
+                    data: ceIV,
+                    borderColor: tc.ce,
+                    backgroundColor: 'transparent',
+                    tension: 0.3,
+                    pointRadius: 2,
+                    spanGaps: true,
+                },
+                {
+                    label: `PE IV${expLabel ? ' (' + expLabel + ')' : ''}`,
+                    data: peIV,
+                    borderColor: tc.pe,
+                    backgroundColor: 'transparent',
+                    tension: 0.3,
+                    pointRadius: 2,
+                    spanGaps: true,
+                },
+            ],
+        },
         options: {
             ...defaultChartOpts(),
             plugins: {
@@ -166,10 +166,12 @@ function _renderSurface3D(container, surfaceData) {
     const surfaceEl = container.querySelector('#ivSurface3D');
     if (!surfaceEl) return;
 
+    // Backend returns: {strikes, dte, ce_surface, pe_surface, ...}
+    const dtes   = surfaceData?.dte   || surfaceData?.dtes   || [];
+    const matrix = surfaceData?.ce_surface || surfaceData?.matrix || [];
     const hasData = surfaceData &&
         Array.isArray(surfaceData.strikes) && surfaceData.strikes.length > 1 &&
-        Array.isArray(surfaceData.dtes)    && surfaceData.dtes.length    > 1 &&
-        Array.isArray(surfaceData.matrix)  && surfaceData.matrix.length;
+        dtes.length > 1 && matrix.length;
 
     if (!hasData) {
         surfaceEl.innerHTML = '<div class="dim" style="padding:2rem;text-align:center">3D surface requires multiple expiries</div>';
@@ -184,8 +186,8 @@ function _renderSurface3D(container, surfaceData) {
             surfaceEl,
             [{
                 type: 'surface',
-                z: surfaceData.matrix,
-                x: surfaceData.dtes,
+                z: matrix,
+                x: dtes,
                 y: surfaceData.strikes,
                 colorscale: 'Viridis',
             }],

@@ -22,6 +22,7 @@ from fastapi.responses import JSONResponse
 from ochain_v2.analyzers.primitives import (
     compute_atm,
     compute_buildups,
+    compute_max_pain,
     compute_pcr,
     compute_support_resistance,
 )
@@ -210,6 +211,20 @@ async def api_analyze(
 # Helpers
 # ---------------------------------------------------------------------------
 
+def _estimate_spot(df: pd.DataFrame) -> float:
+    """Estimate spot from chain data via put-call parity (min |ce_ltp - pe_ltp|)."""
+    if df.empty:
+        return 0.0
+    try:
+        valid = df.dropna(subset=["ce_ltp", "pe_ltp"])
+        if valid.empty:
+            return float(df["strike"].median())
+        idx = (valid["ce_ltp"] - valid["pe_ltp"]).abs().idxmin()
+        return float(valid.loc[idx, "strike"])
+    except Exception:
+        return 0.0
+
+
 def _build_summary(
     df_to: pd.DataFrame,
     df_from: pd.DataFrame,
@@ -219,6 +234,8 @@ def _build_summary(
     expiry: str,
     trade_date,
 ) -> dict:
+    if not spot:
+        spot = _estimate_spot(df_to)
     try:
         pcr = compute_pcr(df_to)
     except Exception:
@@ -227,6 +244,11 @@ def _build_summary(
         atm = compute_atm(df_to, spot)
     except Exception:
         atm = {}
+    try:
+        mp = compute_max_pain(df_to)
+        atm = {**atm, "max_pain": mp.get("max_pain_price")}
+    except Exception:
+        pass
     _LOT_DEFAULTS = {"NIFTY": 75, "BANKNIFTY": 30, "FINNIFTY": 65, "MIDCPNIFTY": 120}
     lot_size = _LOT_DEFAULTS.get(symbol, 50)
     try:
@@ -241,7 +263,9 @@ def _build_summary(
         expiry_date = date.fromisoformat(str(expiry)) if isinstance(expiry, str) else expiry
         from datetime import date as _date
         dte = max(0.0, (expiry_date - trade_date).days)
-        em = compute_expected_move(df_to, spot=spot, dte=dte)
+        atm_iv_val    = atm.get("avg_iv")
+        straddle_val  = atm.get("straddle_price")
+        em = compute_expected_move(spot, atm_iv_val, dte, straddle_val)
     except Exception:
         em = {}
     try:

@@ -1,5 +1,5 @@
 import { apiFetch, scalperUrl } from '../core/api.js';
-import { showSkeleton, showSkeletonCharts, hideSkeleton } from '../components/skeleton.js';
+import { showSkeleton, hideSkeleton } from '../components/skeleton.js';
 import { showError, clearError } from '../components/error-state.js';
 import {
     fmt, fmtInt, fmtPct, chgClass, themeColors, chartColors,
@@ -99,12 +99,19 @@ export async function load(container, s) {
 
         hideSkeleton(signalsEl);
 
-        _renderMarketRead(container, data.market_read || {});
+        // Derive market read from metrics (no dedicated field in API)
+        const m = data.metrics || {};
+        const dir = m.gex_regime === 'negative' ? 'volatile'
+            : (m.pcr_oi > 1.2 ? 'bullish' : m.pcr_oi < 0.8 ? 'bearish' : 'neutral');
+        _renderMarketRead(container, {
+            direction: dir,
+            reason: `GEX: ${m.gex_regime || '—'}  PCR: ${m.pcr_oi != null ? Number(m.pcr_oi).toFixed(2) : '—'}  ATM IV: ${m.atm_iv != null ? Number(m.atm_iv).toFixed(1) + '%' : '—'}`,
+        });
         _renderSignals(container, data.signals || []);
-        _renderTopStrikes(container, data.top_strikes || []);
-        _renderCOIChart(container, data.coi_flow || []);
-        _renderWriters(container, data.writer_ce || [], 'CE');
-        _renderWriters(container, data.writer_pe || [], 'PE');
+        _renderTopStrikes(container, []);
+        _renderCOIChart(container, []);
+        _renderWriters(container, [], 'CE');
+        _renderWriters(container, [], 'PE');
     } catch (err) {
         if (err.name === 'AbortError') return;
         hideSkeleton(signalsEl);
@@ -142,20 +149,20 @@ function _renderSignals(container, signals) {
     }
 
     listEl.innerHTML = signals.map(sig => {
-        const strengthCls = (sig.strength || 'medium').toLowerCase();
-        const confPct     = sig.confidence != null ? fmtPct(sig.confidence * 100) : '—';
+        const str = sig.strength ?? 0;
+        const strengthCls = str >= 0.7 ? 'high' : str >= 0.4 ? 'medium' : 'low';
+        const strengthPct = Math.round(str * 100) + '%';
         return `<div class="scalp-signal-card strength-${strengthCls}">
   <div class="signal-header">
-    <span class="signal-name">${sig.signal_name || '—'}</span>
-    <span class="signal-strength ${strengthCls}">${sig.strength || ''}</span>
-    <span class="signal-strike">${fmtInt(sig.strike)}</span>
+    <span class="signal-name">${sig.signal_type || '—'}</span>
+    <span class="signal-strength ${strengthCls}">${strengthPct}</span>
+    <span class="signal-strike">${sig.strike != null ? fmtInt(sig.strike) : '—'}</span>
   </div>
   <div class="signal-meta">
-    <span>Conf: <strong>${confPct}</strong></span>
-    <span>LTP: <strong>${fmt(sig.ltp)}</strong></span>
-    <span>IV: <strong>${sig.iv != null ? Number(sig.iv).toFixed(1) + '%' : '—'}</strong></span>
+    <span>Side: <strong>${sig.side || '—'}</strong></span>
+    <span>Strength: <strong>${strengthPct}</strong></span>
   </div>
-  <div class="signal-detail">${sig.detail || ''}</div>
+  <div class="signal-detail">${sig.reason || ''}</div>
 </div>`;
     }).join('');
 }

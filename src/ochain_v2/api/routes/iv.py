@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import date
+from datetime import date as _date
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 
 from ochain_v2.analyzers.iv_surface import compute_iv_smile, compute_iv_surface
 from ochain_v2.api.deps import CacheDep, ReaderDep
-from ochain_v2.api.routes.chain import _parse_date
+from ochain_v2.api.routes.chain import _parse_date, _estimate_spot
 
 router = APIRouter()
 
@@ -43,14 +43,24 @@ async def api_iv_surface(
     sid = snaps[-1]["snapshot_id"]
     df = await loop.run_in_executor(None, reader.get_chain_rows, sid)
     spot = reader.get_underlying_ltp(sid) or 0.0
+    if not spot:
+        spot = _estimate_spot(df)
 
     try:
-        expiry_date = date.fromisoformat(use_expiry)
+        expiry_date = _date.fromisoformat(use_expiry)
         iv_smile = await loop.run_in_executor(
             None, compute_iv_smile, df, expiry_date, spot
         )
     except Exception:
         iv_smile = {}
+
+    try:
+        atm_iv_intraday = await loop.run_in_executor(
+            None, reader.get_atm_iv_intraday,
+            symbol, use_expiry, trade_date, spot,
+        )
+    except Exception:
+        atm_iv_intraday = []
 
     # Multi-expiry surface: collect near + next expiry
     expiries_dict = {}
@@ -73,6 +83,7 @@ async def api_iv_surface(
         "trade_date": str(trade_date),
         "underlying_ltp": spot,
         "iv_smile": iv_smile,
+        "atm_iv_intraday": atm_iv_intraday,
         "iv_surface": surface,
     }
     cache.window.set(cache_key, result)

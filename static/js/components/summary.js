@@ -8,16 +8,24 @@ export function updateSummary(data) {
     const em  = s.expected_move || {};
     const gex = s.gex || {};
 
+    const pcr_vol = pcr.pcr_volume ?? pcr.pcr_vol;
+    const supportStrike = Array.isArray(sr.support)
+        ? (sr.support.reduce((m, r) => r.pe_oi > (m?.pe_oi ?? -1) ? r : m, null)?.strike ?? null)
+        : (sr.support ?? null);
+    const resistanceStrike = Array.isArray(sr.resistance)
+        ? (sr.resistance.reduce((m, r) => r.ce_oi > (m?.ce_oi ?? -1) ? r : m, null)?.strike ?? null)
+        : (sr.resistance ?? null);
+
     _set('scCeOI',      fmtInt(pcr.total_ce_oi));
     _set('scPeOI',      fmtInt(pcr.total_pe_oi));
-    _set('scPcrOI',     pcr.pcr_oi != null ? Number(pcr.pcr_oi).toFixed(2) : '—');
-    _set('scPcrVol',    pcr.pcr_vol != null ? Number(pcr.pcr_vol).toFixed(2) : '—');
+    _set('scPcrOI',     pcr.pcr_oi  != null ? Number(pcr.pcr_oi).toFixed(2)  : '—');
+    _set('scPcrVol',    pcr_vol     != null ? Number(pcr_vol).toFixed(2)      : '—');
     _set('scMaxPain',   fmtInt(atm.max_pain));
-    _set('scAtmIV',     atm.atm_iv != null ? Number(atm.atm_iv).toFixed(1) + '%' : '—');
-    _set('scExpMove',   em.expected_move_abs != null ? '±' + fmt(em.expected_move_abs) : '—');
-    _set('scSupport',   fmtInt(sr.support));
-    _set('scResistance',fmtInt(sr.resistance));
-    _set('scGex',       gex.gex_regime || '—');
+    _set('scAtmIV',     (atm.avg_iv ?? atm.atm_iv) != null ? Number(atm.avg_iv ?? atm.atm_iv).toFixed(1) + '%' : '—');
+    _set('scExpMove',   em.expected_move != null ? '±' + fmt(em.expected_move) : '—');
+    _set('scSupport',   fmtInt(supportStrike));
+    _set('scResistance',fmtInt(resistanceStrike));
+    _set('scGex',       gex.regime ?? gex.gex_regime ?? '—');
 
     const card = document.getElementById('cardPCR');
     if (card && pcr.pcr_oi != null) {

@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 from ochain_v2.analyzers.strategies import get_strategy
 from ochain_v2.analyzers.strategies.base import AnalysisContext
 from ochain_v2.api.deps import CacheDep, ReaderDep
-from ochain_v2.api.routes.chain import _parse_date, _parse_tf
+from ochain_v2.api.routes.chain import _parse_date, _parse_tf, _estimate_spot
 
 router = APIRouter()
 
@@ -62,6 +62,8 @@ async def api_scalper(
     )
 
     spot = reader.get_underlying_ltp(sid) or 0.0
+    if not spot:
+        spot = _estimate_spot(df)
     lot = _DEFAULT_LOT.get(symbol, 50)
 
     from datetime import date as _date

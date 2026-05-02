@@ -79,10 +79,11 @@ async function _fetchStrategies(container) {
     try {
         const strategies = await apiFetch(strategiesUrl());
         const sel        = container.querySelector('#signalsStrategy');
-        if (!sel || !Array.isArray(strategies) || !strategies.length) return;
+        const list = Array.isArray(strategies) ? strategies : (strategies?.strategies || []);
+        if (!sel || !list.length) return;
 
         const current = sel.value;
-        sel.innerHTML = strategies.map(name =>
+        sel.innerHTML = list.map(name =>
             `<option value="${name}"${name === current ? ' selected' : ''}>${_labelStrategy(name)}</option>`
         ).join('');
     } catch {
@@ -146,8 +147,8 @@ function _distributeData(container, data, strategy) {
         const action = (sig.action || '').toUpperCase();
 
         // Writer signals default to SELL bucket
-        const isWriter = (sig.signal_name || '').toLowerCase().includes('writer') ||
-                         (sig.signal_name || '').toLowerCase().includes('sell');
+        const isWriter = (sig.signal_type || '').toLowerCase().includes('writer') ||
+                         (sig.signal_type || '').toLowerCase().includes('sell');
 
         if (side === 'CE') {
             buckets[isWriter ? 'CE_SELL' : 'CE_BUY'].push(sig);
@@ -166,26 +167,20 @@ function _distributeData(container, data, strategy) {
     // Supplement CE_SELL / PE_SELL from writer arrays
     writerCE.forEach(w => {
         buckets['CE_SELL'].push({
-            signal_name: 'Writer Activity',
+            signal_type: 'Writer Activity',
             side: 'CE',
-            strength: 'medium',
-            confidence: null,
+            strength: 0.5,
             strike: w.strike,
-            ltp: w.ltp,
-            iv: null,
-            detail: `OI: ${fmt(w.oi)}  COI: ${fmt(w.coi_chg)}  Price: ${w.price_chg != null ? Number(w.price_chg).toFixed(2) + '%' : '—'}`,
+            reason: `OI: ${fmt(w.oi)}  COI: ${fmt(w.coi_chg)}  Price: ${w.price_chg != null ? Number(w.price_chg).toFixed(2) + '%' : '—'}`,
         });
     });
     writerPE.forEach(w => {
         buckets['PE_SELL'].push({
-            signal_name: 'Writer Activity',
+            signal_type: 'Writer Activity',
             side: 'PE',
-            strength: 'medium',
-            confidence: null,
+            strength: 0.5,
             strike: w.strike,
-            ltp: w.ltp,
-            iv: null,
-            detail: `OI: ${fmt(w.oi)}  COI: ${fmt(w.coi_chg)}  Price: ${w.price_chg != null ? Number(w.price_chg).toFixed(2) + '%' : '—'}`,
+            reason: `OI: ${fmt(w.oi)}  COI: ${fmt(w.coi_chg)}  Price: ${w.price_chg != null ? Number(w.price_chg).toFixed(2) + '%' : '—'}`,
         });
     });
 
@@ -208,10 +203,10 @@ function _renderDominance(container, domId, signals, topStrikes, colKey) {
     const listEl  = domBox.querySelector('.dom-list');
     if (!listEl) return;
 
-    // Top 3 by confidence score from signals in this column
+    // Top 3 by strength score from signals in this column
     const sorted = [...signals]
-        .filter(s => s.confidence != null)
-        .sort((a, b) => (b.confidence || 0) - (a.confidence || 0))
+        .filter(s => s.strength != null)
+        .sort((a, b) => (b.strength || 0) - (a.strength || 0))
         .slice(0, 3);
 
     if (!sorted.length) {
@@ -220,11 +215,11 @@ function _renderDominance(container, domId, signals, topStrikes, colKey) {
     }
 
     listEl.innerHTML = sorted.map((sig, i) => {
-        const conf = sig.confidence != null ? fmtPct(sig.confidence * 100) : '—';
+        const str = sig.strength != null ? Math.round(sig.strength * 100) + '%' : '—';
         return `<div class="dom-item">
   <span class="dom-rank">${i + 1}</span>
-  <span class="dom-strike">${fmtInt(sig.strike)}</span>
-  <span class="dom-conf">${conf}</span>
+  <span class="dom-strike">${sig.strike != null ? fmtInt(sig.strike) : '—'}</span>
+  <span class="dom-conf">${str}</span>
 </div>`;
     }).join('');
 }
@@ -239,20 +234,20 @@ function _renderSignalList(container, sigsId, signals) {
     }
 
     listEl.innerHTML = signals.map(sig => {
-        const strengthCls = (sig.strength || 'medium').toLowerCase();
-        const confPct     = sig.confidence != null ? fmtPct(sig.confidence * 100) : '—';
+        const str = sig.strength ?? 0;
+        const strengthCls = str >= 0.7 ? 'high' : str >= 0.4 ? 'medium' : 'low';
+        const strengthPct = Math.round(str * 100) + '%';
         return `<div class="scalp-signal-card strength-${strengthCls}">
   <div class="signal-header">
-    <span class="signal-name">${sig.signal_name || '—'}</span>
-    <span class="signal-strength ${strengthCls}">${sig.strength || ''}</span>
-    <span class="signal-strike">${fmtInt(sig.strike)}</span>
+    <span class="signal-name">${sig.signal_type || '—'}</span>
+    <span class="signal-strength ${strengthCls}">${strengthPct}</span>
+    <span class="signal-strike">${sig.strike != null ? fmtInt(sig.strike) : '—'}</span>
   </div>
   <div class="signal-meta">
-    <span>Conf: <strong>${confPct}</strong></span>
-    <span>LTP: <strong>${fmt(sig.ltp)}</strong></span>
-    <span>IV: <strong>${sig.iv != null ? Number(sig.iv).toFixed(1) + '%' : '—'}</strong></span>
+    <span>Side: <strong>${sig.side || '—'}</strong></span>
+    <span>Strength: <strong>${strengthPct}</strong></span>
   </div>
-  <div class="signal-detail">${sig.detail || ''}</div>
+  <div class="signal-detail">${sig.reason || ''}</div>
 </div>`;
     }).join('');
 }

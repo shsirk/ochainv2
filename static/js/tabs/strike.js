@@ -1,4 +1,4 @@
-import { apiFetch, strikeUrl } from '../core/api.js';
+import { apiFetch, strikeUrl, analyzeUrl } from '../core/api.js';
 import { showError, clearError } from '../components/error-state.js';
 import {
     fmt, fmtInt, fmtPct, themeColors, chartColors,
@@ -68,14 +68,20 @@ export async function load(container, s) {
     _lastS = s;
     clearError(container);
 
-    // Populate strikes from chain data if select is empty
     const sel = container.querySelector('#strikeSelect');
-    if (sel && sel.options.length <= 1) {
-        // No chain data yet; show placeholder
-        return;
+    if (!sel) return;
+
+    // If select has no strikes yet (event was missed), fetch them now
+    if (sel.options.length <= 1) {
+        try {
+            const data = await apiFetch(analyzeUrl(s));
+            _populateSelect(container, data.strikes || []);
+        } catch {
+            return;
+        }
     }
 
-    const strike = sel ? Number(sel.value) : null;
+    const strike = Number(sel.value);
     if (!strike) return;
 
     await _loadStrike(container, s, strike);

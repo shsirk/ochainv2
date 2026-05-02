@@ -15,11 +15,11 @@ export function init(container) {
     container.innerHTML = `
 <div class="flow-grid">
   <div class="chart-box flow-chart">
-    <h3>Gamma Exposure (GEX)</h3>
+    <h3>Net GEX per Strike</h3>
     <div class="chart-wrap"><canvas id="flowGexCanvas"></canvas></div>
   </div>
   <div class="chart-box flow-chart">
-    <h3>Delta Exposure (DEX)</h3>
+    <h3>CE vs PE GEX</h3>
     <div class="chart-wrap"><canvas id="flowDexCanvas"></canvas></div>
   </div>
 </div>
@@ -68,16 +68,16 @@ function _renderGexChart(container, gex) {
     if (!canvas) return;
     _charts.gex = destroyChart(_charts.gex);
 
-    const rows = (gex.gex_by_strike || []).slice().reverse();
-    if (!rows.length) {
+    const strikes = gex.strikes || [];
+    const netGex  = gex.net_gex  || [];
+    if (!strikes.length) {
         canvas.parentElement.innerHTML = '<div class="dim">No GEX data</div>';
         return;
     }
     const t  = themeColors();
     const cc = chartColors();
-    const labels = rows.map(r => String(r.strike));
-    const data   = rows.map(r => r.net_gex);
-    const colors = data.map(v => v >= 0 ? cc.green : cc.red);
+    const labels = strikes.map(String);
+    const colors = netGex.map(v => v >= 0 ? cc.green : cc.red);
 
     _charts.gex = new Chart(canvas, {
         type: 'bar',
@@ -85,7 +85,7 @@ function _renderGexChart(container, gex) {
             labels,
             datasets: [{
                 label: 'Net GEX',
-                data,
+                data: netGex,
                 backgroundColor: colors,
                 borderColor: colors,
                 borderWidth: 1,
@@ -96,11 +96,7 @@ function _renderGexChart(container, gex) {
             indexAxis: 'y',
             plugins: {
                 legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: ctx => `GEX: ${fmt(ctx.raw)}`,
-                    },
-                },
+                tooltip: { callbacks: { label: ctx => `GEX: ${fmt(ctx.raw)}` } },
             },
             scales: {
                 x: { ticks: { color: t.textDim, font: { size: 9 } }, grid: { color: t.grid } },
@@ -115,40 +111,29 @@ function _renderDexChart(container, gex) {
     if (!canvas) return;
     _charts.dex = destroyChart(_charts.dex);
 
-    const rows = (gex.dex_by_strike || []).slice().reverse();
-    if (!rows.length) {
-        canvas.parentElement.innerHTML = '<div class="dim">No DEX data</div>';
+    const strikes = gex.strikes || [];
+    const ceGex   = gex.ce_gex  || [];
+    const peGex   = gex.pe_gex  || [];
+    if (!strikes.length) {
+        canvas.parentElement.innerHTML = '<div class="dim">No GEX data</div>';
         return;
     }
     const t  = themeColors();
     const cc = chartColors();
-    const labels = rows.map(r => String(r.strike));
-    const data   = rows.map(r => r.net_dex);
-    const colors = data.map(v => v >= 0 ? cc.green : cc.red);
 
     _charts.dex = new Chart(canvas, {
         type: 'bar',
         data: {
-            labels,
-            datasets: [{
-                label: 'Net DEX',
-                data,
-                backgroundColor: colors,
-                borderColor: colors,
-                borderWidth: 1,
-            }],
+            labels: strikes.map(String),
+            datasets: [
+                { label: 'CE GEX', data: ceGex, backgroundColor: cc.ce, borderWidth: 0 },
+                { label: 'PE GEX', data: peGex, backgroundColor: cc.pe, borderWidth: 0 },
+            ],
         },
         options: {
             ...defaultChartOpts(),
             indexAxis: 'y',
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: ctx => `DEX: ${fmtInt(ctx.raw)}`,
-                    },
-                },
-            },
+            plugins: { legend: { labels: { color: t.textDim, font: { size: 10 } } } },
             scales: {
                 x: { ticks: { color: t.textDim, font: { size: 9 } }, grid: { color: t.grid } },
                 y: { ticks: { color: t.textDim, font: { size: 9 } }, grid: { color: t.grid } },
@@ -161,19 +146,14 @@ function _renderKeyLevels(container, gex) {
     const panel = container.querySelector('#flowKeyLevels');
     if (!panel) return;
 
-    const em = gex.expected_move || {};
-    const walls = gex.gex_walls || {};
-
     const rows = [
-        ['Total GEX',     fmt(gex.total_gex),            chgClass(gex.total_gex)],
-        ['GEX Flip',      fmtInt(gex.gex_flip),          ''],
-        ['GEX Regime',    gex.gex_regime || '—',         'dim'],
-        ['Call Wall',     fmtInt(walls.call_wall),        'negative'],
-        ['Put Wall',      fmtInt(walls.put_wall),         'positive'],
-        ['1σ Up',         fmtInt(em.one_sigma_up),        'positive'],
-        ['1σ Down',       fmtInt(em.one_sigma_down),      'negative'],
-        ['2σ Up',         fmtInt(em.two_sigma_up),        'positive'],
-        ['2σ Down',       fmtInt(em.two_sigma_down),      'negative'],
+        ['Total GEX',   fmt(gex.total_gex),               chgClass(gex.total_gex)],
+        ['CE GEX',      fmt(gex.total_ce_gex),            ''],
+        ['PE GEX',      fmt(gex.total_pe_gex),            ''],
+        ['GEX Flip',    gex.flip_point != null ? fmtInt(gex.flip_point) : '—', ''],
+        ['Regime',      gex.regime     || '—',            'dim'],
+        ['Total DEX',   fmt(gex.dex),                     chgClass(gex.dex)],
+        ['Underlying',  fmtInt(gex.underlying_ltp),       ''],
     ];
 
     panel.innerHTML = '<h3>Key Levels</h3>' +
@@ -186,12 +166,13 @@ function _renderAlerts(container, alerts) {
     const feed = container.querySelector('#alertsFeed');
     if (!feed) return;
 
-    if (!alerts || !alerts.length) {
+    const list = (alerts && alerts.alerts) ? alerts.alerts : (Array.isArray(alerts) ? alerts : []);
+    if (!list.length) {
         feed.innerHTML = '<div class="alert-empty dim">No unusual activity detected</div>';
         return;
     }
 
-    feed.innerHTML = alerts.map(a => {
+    feed.innerHTML = list.map(a => {
         const typeClass = 'alert-' + (a.alert_type || '').toLowerCase().replace(/\s+/g, '-');
         const time = a.ts ? new Date(a.ts).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—';
         return `<div class="alert-item ${typeClass}">

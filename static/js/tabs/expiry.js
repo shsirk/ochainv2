@@ -1,5 +1,5 @@
-import { apiFetch, expiriesUrl } from '../core/api.js';
-import { showSkeleton, showSkeletonCharts, hideSkeleton } from '../components/skeleton.js';
+import { apiFetch, expiriesUrl, analyzeUrl } from '../core/api.js';
+import { showSkeleton, hideSkeleton } from '../components/skeleton.js';
 import { showError, clearError } from '../components/error-state.js';
 import {
     fmt, fmtInt, fmtPct, chgClass, themeColors, chartColors,
@@ -60,25 +60,67 @@ export async function load(container, s) {
     const sig = _ctrl.signal;
 
     clearError(container);
-    showSkeletonCharts(container.querySelector('.chart-box'), 1);
     showSkeleton(container.querySelector('#expiryTable tbody'), 3);
     showSkeleton(container.querySelector('#rolloverTable tbody'), 3);
 
     try {
-        const data = await apiFetch(expiriesUrl(s), sig);
-        hideSkeleton(container.querySelector('.chart-box'));
+        const listData = await apiFetch(expiriesUrl(s), sig);
+        const expiryDates = (listData.expiries || []).slice(0, 4);
+
+        if (!expiryDates.length) {
+            hideSkeleton(container.querySelector('#expiryTable tbody'));
+            hideSkeleton(container.querySelector('#rolloverTable tbody'));
+            _renderOIChart(container, []);
+            _renderExpiryTable(container, []);
+            _renderRolloverTable(container, []);
+            return;
+        }
+
+        // Fetch analyze data for each expiry in parallel
+        const analyzeResults = await Promise.all(
+            expiryDates.map(exp => apiFetch(analyzeUrl({ ...s, expiry: exp }), sig))
+        );
+
         hideSkeleton(container.querySelector('#expiryTable tbody'));
         hideSkeleton(container.querySelector('#rolloverTable tbody'));
 
-        const expiries  = data.expiries  || [];
-        const rollover  = data.rollover  || [];
+        const _topStrike = (arr, oiKey) => Array.isArray(arr)
+            ? (arr.reduce((m, r) => r[oiKey] > (m?.[oiKey] ?? -1) ? r : m, null)?.strike ?? null)
+            : null;
+
+        const expiries = expiryDates.map((exp, i) => {
+            const d  = analyzeResults[i];
+            const st = d.strikes || [];
+            const sr = d.summary?.support_resistance || {};
+            return {
+                expiry:     exp,
+                ce_oi:      st.reduce((acc, r) => acc + (r.ce_oi || 0), 0),
+                pe_oi:      st.reduce((acc, r) => acc + (r.pe_oi || 0), 0),
+                pcr_oi:     d.summary?.pcr?.pcr_oi,
+                pcr_vol:    d.summary?.pcr?.pcr_volume ?? d.summary?.pcr?.pcr_vol,
+                max_pain:   d.summary?.atm?.max_pain,
+                support:    _topStrike(sr.support,    'pe_oi'),
+                resistance: _topStrike(sr.resistance, 'ce_oi'),
+            };
+        });
+
+        const rollover = [];
+        for (let i = 0; i < expiries.length - 1; i++) {
+            rollover.push({
+                near_expiry: expiries[i].expiry,
+                next_expiry: expiries[i + 1].expiry,
+                ce_near: expiries[i].ce_oi,
+                ce_next: expiries[i + 1].ce_oi,
+                pe_near: expiries[i].pe_oi,
+                pe_next: expiries[i + 1].pe_oi,
+            });
+        }
 
         _renderOIChart(container, expiries);
         _renderExpiryTable(container, expiries);
         _renderRolloverTable(container, rollover);
     } catch (err) {
         if (err.name === 'AbortError') return;
-        hideSkeleton(container.querySelector('.chart-box'));
         hideSkeleton(container.querySelector('#expiryTable tbody'));
         hideSkeleton(container.querySelector('#rolloverTable tbody'));
         showError(container, err.message || 'Failed to load expiry data', () => load(container, s));

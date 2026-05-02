@@ -243,9 +243,58 @@ class DuckDBReader:
         pivot = df.pivot_table(index="strike", columns="ts", values=metric, aggfunc="last")
         strikes = [float(s) for s in pivot.index.tolist()]
         timestamps = [to_ist(t).strftime("%H:%M") for t in pivot.columns.tolist()]
-        matrix = pivot.where(pivot.notna(), other=None).values.tolist()
+        raw = pivot.where(pivot.notna(), other=None).values.tolist()
+        matrix = [[None if (isinstance(v, float) and v != v) else v for v in row] for row in raw]
 
         return {"strikes": strikes, "timestamps": timestamps, "matrix": matrix}
+
+    def get_atm_iv_intraday(
+        self,
+        symbol: str,
+        expiry: str | date,
+        trade_date: date,
+        spot: float,
+    ) -> list[dict]:
+        """
+        Return ATM CE/PE IV time series for the day.
+        Each row: {"ts": "HH:MM", "ce_iv": float|None, "pe_iv": float|None, "avg_iv": float|None}
+        """
+        expiry_date = date.fromisoformat(str(expiry)) if isinstance(expiry, str) else expiry
+
+        df = self._conn().execute(
+            """
+            WITH ranked AS (
+                SELECT ts,
+                       ce_iv,
+                       pe_iv,
+                       ABS(strike - ?) AS dist,
+                       ROW_NUMBER() OVER (PARTITION BY ts ORDER BY ABS(strike - ?)) AS rn
+                FROM chain_rows
+                WHERE symbol = ? AND expiry_date = ? AND trade_date = ?
+            )
+            SELECT ts, ce_iv, pe_iv
+            FROM ranked
+            WHERE rn = 1
+            ORDER BY ts
+            """,
+            [spot, spot, symbol, expiry_date, trade_date],
+        ).df()
+
+        if df.empty:
+            return []
+
+        rows = []
+        for _, r in df.iterrows():
+            ce = float(r["ce_iv"]) if r["ce_iv"] is not None and r["ce_iv"] == r["ce_iv"] else None
+            pe = float(r["pe_iv"]) if r["pe_iv"] is not None and r["pe_iv"] == r["pe_iv"] else None
+            avg = round((ce + pe) / 2, 3) if ce is not None and pe is not None else (ce or pe)
+            rows.append({
+                "ts":     to_ist(r["ts"]).strftime("%H:%M"),
+                "ce_iv":  round(ce, 3) if ce is not None else None,
+                "pe_iv":  round(pe, 3) if pe is not None else None,
+                "avg_iv": avg,
+            })
+        return rows
 
     # ------------------------------------------------------------------
     # Underlying price

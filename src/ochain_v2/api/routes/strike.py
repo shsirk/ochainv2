@@ -37,9 +37,9 @@ async def api_strike_drill(
         raise HTTPException(404, "No snapshots")
 
     # Fetch all chain rows for the day and filter to the requested strike
-    from ochain_v2.core.timezones import to_ist
-    first_ts = to_ist(snaps[0]["ts"]) if snaps else None
-    last_ts  = to_ist(snaps[-1]["ts"]) if snaps else None
+    from datetime import datetime
+    first_ts = datetime.fromisoformat(snaps[0]["ts"]) if snaps else None
+    last_ts  = datetime.fromisoformat(snaps[-1]["ts"]) if snaps else None
 
     df = await loop.run_in_executor(
         None,
@@ -52,7 +52,8 @@ async def api_strike_drill(
         min_dist = (df["strike"] - strike).abs().min()
         df = df[((df["strike"] - strike).abs() <= max(min_dist + 0.01, 0.5))]
 
-    rows = df.where(pd.notna(df), other=None).to_dict(orient="records") if not df.empty else []
+    from ochain_v2.api.routes.chain import _df_to_records
+    rows = _df_to_records(df) if not df.empty else []
 
     return JSONResponse({
         "symbol": symbol,

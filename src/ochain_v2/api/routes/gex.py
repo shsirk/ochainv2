@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 
 from ochain_v2.analyzers.gex import compute_gex
 from ochain_v2.api.deps import CacheDep, ReaderDep
-from ochain_v2.api.routes.chain import _parse_date, _parse_tf
+from ochain_v2.api.routes.chain import _parse_date, _parse_tf, _estimate_spot
 
 router = APIRouter()
 
@@ -53,6 +53,8 @@ async def api_gex(
     loop = asyncio.get_running_loop()
     df = await loop.run_in_executor(None, reader.get_chain_rows, sid)
     spot = reader.get_underlying_ltp(sid) or 0.0
+    if not spot:
+        spot = _estimate_spot(df)
     lot = _DEFAULT_LOT.get(symbol, 50)
 
     try:
